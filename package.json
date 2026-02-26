@@ -14,5 +14,13 @@
   "dependencies": {
     "express": "^5.2.1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YngwieJM/javascript-fullstack-selflearn.git"
+  },
+  "bugs": {
+    "url": "https://github.com/YngwieJM/javascript-fullstack-selflearn/issues"
+  },
+  "homepage": "https://github.com/YngwieJM/javascript-fullstack-selflearn#readme",
   "devDependencies": {}
 }
