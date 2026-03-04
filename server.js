@@ -1,11 +1,13 @@
 const express = require("express");
 const ordersRoute = require("./routes/orders.route");
+const menuRoute = require("./routes/menu.route");
 
 const app = express();
 const PORT = 3000;
 
 app.use(express.json());
 app.use("/orders", ordersRoute);
+app.use("/menu", menuRoute);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
