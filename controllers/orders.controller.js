@@ -1,4 +1,5 @@
 const pool = require("../config/db");
+const orderService = require("../services/orders.service");
 
 function toInt(value){
     const n = Number.parseInt(value, 10);
@@ -6,36 +7,22 @@ function toInt(value){
 }
 
 exports.createOrder = async (req, res) => {
-    const { table_id, staff_id } =req.body;
+    const { table_id, staff_id } = req.body;
 
     try{
-        const tableCheck = await pool.query(
-            "SELECT * FROM restaurant_tables WHERE id = $1",
-            [table_id]
-        );
+        const order = await orderService.createOrder(table_id, staff_id);
 
-        if(tableCheck.rows.length === 0){
-            return res.status(404).json({message: "Table not found"})
-        }
-
-        const staffCheck = await pool.query(
-            "SELECT * FROM staff WHERE id = $1",
-            [staff_id]
-        );
-
-        if(staffCheck.rows.length === 0){
-            return res.status(404).json({message: "Staff not found"});
-        }
-
-        const result = await pool.query(
-            `INSERT INTO orders (table_id, staff_id)
-            VALUES ($1, $2 )
-            RETURNING *`,
-            [table_id, staff_id]
-        );
-
-        res.status(201).json(result.rows[0]);
+        res.status(201).json(order);
     }catch(err){
+
+         if(err.message === "TABLE_NOT_FOUND"){
+            return res.status(404).json({message: "Table not found"});
+         }
+
+         if(err.message === "STAFF_NOT_FOUND"){
+            res.status(404).json({message: "Staff not found"});
+         }
+
         console.error(err);
         res.status(500).json({message: "Internal Server Error"});
     }

@@ -3,3 +3,4 @@
 .continue/agents/new-config.yaml
 .continue/mcpServers/new-mcp-server.yaml
 .continue/rules/new-rule.md
+seedPassword.js
