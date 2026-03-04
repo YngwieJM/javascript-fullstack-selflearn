@@ -1,117 +1,190 @@
-const db = require("../data/db");
+const pool = require("../config/db");
 
 function toInt(value){
     const n = Number.parseInt(value, 10);
     return Number.isNaN(n) ? null : n;
 }
 
-// Create a new order
-exports.createOrder = (req, res) => {
-    const {table_id, staff_id} = req.body;
+exports.createOrder = async (req, res) => {
+    const { table_id, staff_id } =req.body;
 
-    const table = db.restaurantTables.find (t => t.id === table_id);
-    const staff = db.staff.find(s => s.id === staff_id);
+    try{
+        const tableCheck = await pool.query(
+            "SELECT * FROM restaurant_tables WHERE id = $1",
+            [table_id]
+        );
 
-    if(!table){
-        return res.status(404).json({message: "Table not found"});
+        if(tableCheck.rows.length === 0){
+            return res.status(404).json({message: "Table not found"})
+        }
+
+        const staffCheck = await pool.query(
+            "SELECT * FROM staff WHERE id = $1",
+            [staff_id]
+        );
+
+        if(staffCheck.rows.length === 0){
+            return res.status(404).json({message: "Staff not found"});
+        }
+
+        const result = await pool.query(
+            `INSERT INTO orders (table_id, staff_id)
+            VALUES ($1, $2 )
+            RETURNING *`,
+            [table_id, staff_id]
+        );
+
+        res.status(201).json(result.rows[0]);
+    }catch(err){
+        console.error(err);
+        res.status(500).json({message: "Internal Server Error"});
     }
-    if(!staff){
-        return res.status(404).json({message: "Staff member not found"});
-    }
-
-    const newOrder = {
-        id: db.orders.length + 1,
-        table_id,
-        staff_id,
-        status: "OPEN",
-        open_at: new Date()
-    };
-
-    db.orders.push(newOrder);
-
-    res.status(201).json(newOrder);
 };
 
-// Get all orders
-exports.getAllOrders = (req, res) => {
-    res.json(db.orders);
-};
-
-exports.addItemToOrder = (req, res) => {
+exports.addItemOrder = async (req, res) => {
     const orderId = parseInt(req.params.id);
-    const {menu_item_id, quantity} = req.body;
+    const { menu_item_id, quantity} = req.body;
 
-    const order = db.orders.find(o => o.id === orderId);
-    if(!order){
-        return res.status(404).json({message: "Order not found"});
+    if(!quantity || quantity <= 0){
+        return res.status(400).json({message: "Invalid quantity"});
     }
 
-    if(order.status !== "OPEN"){
-        return res.status(404).json({message: "Order is closed"});
+    const client = await pool.connect();
+
+    try{
+        await client.query("BEGIN");
+
+        const orderCheck = await client.query(
+            "SELECT * FROM orders WHERE id = $1", [orderId]
+        );
+
+        if(orderCheck.rows.length === 0){
+            await client.query("ROLLBACK");
+            return res.status(404).json({message: "Order not found"});
+        }
+
+        if(orderCheck.rows[0].status !== "OPEN"){
+            await client.query("ROLLBACK");
+            return res.status(400).json({message: "Order is closed"});
+        }
+
+        const menuCheck = await client.query(
+            "SELECT * FROM menu_items WHERE id = $1 AND is_available = TRUE", [menu_item_id]
+        );
+
+        if(menuCheck.rows.length ===0){
+            await client.query("ROLLBACK")
+            return res.status(404).json({message: "Menu item not available"});
+        }
+
+        const price = menuCheck.rows[0].price;
+
+        const insertResult = await client.query(
+            `INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_time)
+            VALUES($1, $2, $3, $4)
+            RETURNING *`, [orderId, menu_item_id, quantity, price]
+        );
+
+        await client.query("COMMIT");
+
+        res.status(201).json(insertResult.rows[0])
+    }catch(err){
+        await client.query("ROLLBACK");
+        console.error(err);
+        res.status(500).json({message: "Internal Server Error"});
+    }finally{
+        client.release();
     }
-
-    const menuItem = db.menuItems.find(m => m.id === menu_item_id);
-    if(!menuItem || !menuItem.is_available){
-        return res.status(404).json({message: "Menu item not available"});
-    }
-
-    const newItem = {
-        id: db.orderItems.length + 1,
-        order_id: orderId,
-        menu_item_id,
-        quantity,
-        price_at_time: menuItem.price
-    };
-
-    db.orderItems.push(newItem);
-
-    res.status(201).json(newItem);
 };
 
-exports.getOrderById = (req, res) => {
-    const orderId = parseInt(req.params.id);
+exports.getAllOrders = async (req, res) => {
+    try{
+        const result = await pool.query(
+            `SELECT o.*,
+                    rt.table_number,
+                    s.name AS staff_name
+            FROM orders o 
+            JOIN restaurant_tables rt ON o.table_id = rt.id
+            JOIN staff s ON o.staff_id = s.ID
+            ORDER BY o.created_at DESC`
+        );
 
-    const order = db.orders.find(o => o.id === orderId);
-
-    if(!order){
-        return res.status(404).json({message: "Order not found"});
+        res.json(result.rows);
+    }catch(err){
+        console.error(err);
+        res.status(500).json({message: "Internal Server Error"});
     }
-
-    const items = db.orderItems.filter(item => item.order_id === orderId).map(item => {
-        const menu = db.menuItems.find(m => m.id === item.menu_item_id);
-
-        return{
-            id: item.id,
-            name: menu.name,
-            quantity: item.quantity,
-            price: item.price_at_time,
-            subtotal: item.quantity * item.price_at_time
-        };
-    });
-
-    const total = items.reduce((sum, item) => sum + item.subtotal, 0);
-
-    res.json({
-        ...order,
-        items,
-        total
-    });
 };
 
-exports.closeOrder = (req, res) => {
+exports.getOrderById = async (req, res) => {
     const orderId = parseInt(req.params.id);
 
-    const order = db.orders.find(o => o.id === orderId);
-    if(!order){
-        return res.status(404).json({message: "Order not found"});
+    try{
+        const orderResult = await pool.query(
+            `SELECT o.*,
+                    rt.table_number,
+                    s.name AS staff_name
+            FROM orders o
+            JOIN restaurant_tables rt ON o.table_id = rt.id
+            JOIN staff s ON o.staff_id = s.id
+            WHERE o.id = $1`, [orderId]
+        );
+
+        if(orderResult.rows.length === 0){
+            return res.status(404).json({message: "Order not found"});
+
+        }
+
+        const itemsResult = await pool.query(
+            `SELECT
+                oi.id,
+                m.name,
+                oi.quantity,
+                oi.price_at_time,
+                (oi.quantity * oi.price_at_time) AS subtotal
+            FROM order_items oi
+            JOIN menu_items m ON oi.menu_item_id = m.id
+            WHERE oi.order_id = $1`,[orderId]
+        );
+
+        const totalResult = await pool.query(
+            `SELECT COALESCE(SUM(quantity * price_at_time), 0) AS total
+            FROM order_items
+            WHERE order_id = $1`, [orderId]
+        );
+
+        res.json({
+            ...orderResult.rows[0],
+            items: itemsResult.rows,
+            total: totalResult.rows[0].total
+        });
+    }catch(err){
+        console.error(err);
+        res.status(500).json({ message: "Internal Server Error"});
     }
+};
 
-    if(order.status === "CLOSED"){
-        return res.status(400).json({message: "Order already closed"});
+exports.closeOrder = async (req, res) => {
+    const orderId = parseInt(req.params.id);
+
+    try{
+        const result = await pool.query(
+            `UPDATE orders
+            SET status = 'CLOSED'
+            WHERE id = $1 AND status = 'OPEN'
+            RETURNING *`,[orderId]
+        );
+
+        if(result.rows.length === 0){
+            return res.status(400).json({message: "Order not found or already closed"});
+        }
+
+        res.json({
+            message: "Order Closed Successfully",
+            order: result.rows[0]
+        });
+    }catch(err){
+        console.error(err);
+        res.status(500).json({message: "Internal Server Error"});
     }
-
-    order.status = "CLOSED";
-    order.closed_at = new Date();
-
-    res.json({message: "Order closed successfully", order});
 };
