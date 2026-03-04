@@ -18,4 +18,4 @@ let orderItems = [];
 
 module.exports = {
     staff, restaurantTables, menuItems, orders, orderItems
-}''
+};
