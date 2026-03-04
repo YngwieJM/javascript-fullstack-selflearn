@@ -1,48 +1,79 @@
 const express = require("express");
-const pool = require("./db");
 
 const app = express();
-app.use(express.json());
+const PORT = 3000;
 
-// API GET all users
-app.get("/users", async(req, res) =>{
-    try{
-        const result = await pool.query("SELECT * FROM users");
-        res.json(result.rows);
-    }catch(err){
-        res.status(500).json({error: "500 Internal Server Error"});
-    }
+app.use(express.json);
+
+app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
 });
 
-// API GET user by ID
-app.get("/users/:id", async(req, res) => {
-    try{
-        const id = parseInt(req.params.id);
-        const result = await pool.query("SELECT * FROM users WHERE id = $1", [id]);
+let products = [
+    {id: 1, name: "Laptop", price: 1000},
+    {id: 2, name: "Mouse", price:50}
+];
 
-        if(result.rows.length ===0){
-            return res.status(404).json({error: "User not found"});
-        }
-        res.json(result.rows[0]);
-    }catch(err){
-        res.status(500).json({error: "500 Internal Server Error"});
-    }
+app.get("/products", (req, res) =>{
+    res.json(products);
 });
 
-app.post("/users", async(req, res) => {
-    try{
-        const {name} = req.body;
+app.get("/products/:id", (req, res) => {
+    const id = parseInt(req.params.id);
 
-        if(!name){
-            return res.status(400).json({error: "Name is required"});
-        }
-        const result = await pool.query("INSERT INTO users (name) VALUES ($1) RETURNING *", [name]);
-        res.status(201).json({message: "User created", user: result.rows[0]});
-    }catch(err){
-        res.status(500).json({error: "500 Internal Server Error"});
+    const products = products.find(p => p.id === id);
+
+    if(!products){
+        return res.status(404).json({message: "Product not found"});
     }
+
+    res.json(products)
 });
 
-app.listen(3000, () => {
-    console.log("Server running at http://localhost:3000");
+app.post("/products", (req, res => {
+    const {name, price} = req.body;
+
+    id(!name || !price){
+        return res.status(400).json({message: "Name and Price are required"});
+    }
+
+    const newProduct = {
+        id: products.length + 1,
+        name,
+        price
+    };
+
+    products.push(newProduct);
+
+    res.status(201).json(newProduct);
+}));
+
+app.put("/products/:id", (req, res => {
+    const id = parseInt(req.params.id);
+    const {name, price} = req.body;
+
+    const product = products.find(p => p.id === id);
+
+    id(!product){
+        return res.status(404).json({meesage: "Product not found"});
+    }
+
+        if(name) product.name = name;
+        if(price) product.price = price;
+
+        res.json(product);
+}));
+
+app.delete("/products/:id", (req, res) => {
+    const id = parseInt(req.params.id);
+
+    const index = products.findIndex(p => p.id ===id);
+
+    if(index === -1){
+        return res.status(404).json({message: "Product not found"});
+    }
+
+    const delted = products.splice(index, 1);
+
+    res.json({message: "Deleted successfully", delted});
 });
