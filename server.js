@@ -3,6 +3,7 @@ const ordersRoute = require("./routes/orders.routes");
 const menuRoute = require("./routes/menu.routes");
 const staffRoute = require("./routes/staff.routes");
 const tablesRoute = require("./routes/tables.routes");
+const authRoute = require("./routes/auth.routes");
 
 const app = express();
 const PORT = 3000;
@@ -12,6 +13,7 @@ app.use("/orders", ordersRoute);
 app.use("/menu", menuRoute);
 app.use("/staff", staffRoute);
 app.use("/tables", tablesRoute);
+app.use("/auth", authRoute);
 
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
