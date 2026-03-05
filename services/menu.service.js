@@ -66,7 +66,7 @@ exports.deleteMenuItem = async (id) => {
         `DELETE FROM menu_items WHERE id = $1 RETURNING *`,[id]
     );
 
-    id(result.rows.length === 0){
+    if(result.rows.length === 0){
         throw new Error("MENU_ITEM_NOT_FOUND");
     }
 
