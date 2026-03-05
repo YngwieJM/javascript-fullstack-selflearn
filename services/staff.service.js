@@ -31,7 +31,7 @@ exports.createStaff = async (name, email, password, role) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const result = await pool.query(`
-        INSER INTO staff (name, email, password, role)
+        INSERT INTO staff (name, email, password, role)
         VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`, [name, email, hashedPassword, role]);
 
         return result.rowCount[0];
