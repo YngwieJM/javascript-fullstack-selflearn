@@ -70,7 +70,7 @@ exports.updatePassword = async (req, res) => {
     const {currentPassword, newPassword} = req.body;
 
     try{
-        const staff = await staffService.updatePassword(id, newPassword, currentPassword);
+        const staff = await staffService.updatePassword(id, currentPassword, newPassword);
         res.json(staff);
     }catch(err){
     if(err.message === "STAFF_NOT_FOUND"){
@@ -90,7 +90,7 @@ exports.deleteStaff = async (req, res) => {
     const id = req.params.id;
 
     try{
-        const staff = staffService.deleteStaff(id);
+        const staff = await staffService.deleteStaff(id);
 
         res.json({message: "Staff deleted successfully", staff});
     }catch (err){
