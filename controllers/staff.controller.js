@@ -1,76 +1,48 @@
 const pool = require("../config/db");
 const staffService = require("../services/staff.service");
+const asyncHandler = require("../utils/asyncHandler");
 
-exports.createStaff = async(req, res, next) => {
-    const {name, email, password, role} = req.body;
+exports.createStaff = asyncHandler(async(req, res) => {
+    const{ name, email, password, role } = req.body;
 
-    try{
-        const staff = await staffService.createStaff(name, email, password, role);
-        res.status(201).json({message: "STAFF_CREATED", staff});
-    }catch(err){
-        next(err);
-    }
-    
-};
+    const staff = await staffService.createStaff(name, email, password, role);
 
-exports.getAllStaff = async (req, res, next) => {
-    try{
-       const staff = await staffService.getAllStaff();
+    res.status(201).json({ message: "STAFF_CREATED", staff });
+});
 
-       res.status(200).json(staff)
-    }catch(err){
-        next(err);
-    }
-};
+exports.getAllStaff = asyncHandler(async(req, res) => {
+    const staff = await staffService.getAllStaff();
 
-exports.getStaffById = async (req, res, next) => {
+    res.json(staff)
+});
+
+exports.getStaffById = asyncHandler(async(req, res) => {
     const id = req.params.id;
+    const staff = await staffService.getStaffById(id);
 
-    try{
-        const staff = await staffService.getStaffById(id);
+    res.json(staff);
+});
 
-        res.status(200).json(staff);
-    }catch(err){
-
-        next(err);
-    }
-};
-
-exports.updateStaff = async (req, res, next) => {
+exports.updateStaff = asyncHandler(async(req, res) => {
     const id = req.params.id;
-    const{name, email, role} = req.body;
+    const {name, email, role} = req.body;
 
-    try{
-        const staff = await staffService.updateStaff(id, name, email, role);
+    const staff = await staffService.updateStaff(id, name, email, role );
 
-        res.status(200).json(staff);
-    }catch(err){
+    res.json(staff);
+});
 
-        next(err);
-    }
-};
-
-exports.updatePassword = async (req, res, next) => {
+exports.updatePassword = asyncHandler(async(req, res) => {
     const id = req.params.id;
     const {currentPassword, newPassword} = req.body;
 
-    try{
-        const staff = await staffService.updatePassword(id, currentPassword, newPassword);
-        res.json(staff);
-    }catch(err){
-    next(err);
-    }
-};
+    const staff = await staffService.updatePassword(id, currentPassword, newPassword);
+    res.status(200).json({message: "Password updated successfully"}); 
+})
 
 
-exports.deleteStaff = async (req, res, next) => {
+exports.deleteStaff = asyncHandler(async(req, res) => {
     const id = req.params.id;
-
-    try{
-        const staff = await staffService.deleteStaff(id);
-
-        res.json({message: "Staff deleted successfully", staff});
-    }catch (err){
-        next(err);
-    }
-};
+     await staffService.deleteStaff(id);
+    res.status(204).send();
+})

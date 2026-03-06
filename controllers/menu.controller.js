@@ -1,72 +1,42 @@
 const pool = require("../config/db");
 const menuService = require("../services/menu.service");
+const asyncHandler = require("../utils/asyncHandler");
 
-exports.createMenuItem = async(req, res, next) => {
-    const {name, category, price} = req.body;
+exports.createMenuItem = asyncHandler(async(req, res, next) => {
+    const {name, category, price} = req.body
 
-    try{
-        const item = await menuService.createMenuItem(name, category, price);
+    const item = await menuService.createMenuItem(name, category, price);
+    res.json(item)
+});
 
-        res.status(201).json(item);
-    }catch(err){
+exports.getAllMenuItems = asyncHandler(async(req, res) => {
+    const items = await menuService.getAllMenuItems();
+    res.json(items);
+});
 
-        next(err);
-    }
-};
-
-exports.getAllMenuItems = async (req, res, next) => {
-    try{
-        const item = await menuService.getAllMenuItems();
-        res.json(item);
-    }catch(err){
-        next(err);
-    }
-};
-
-exports.getMenuItemById = async (req, res, next) => {
+exports.getMenuItemById = asyncHandler(async(req, res) => {
     const id = req.params.id;
+    const item = await menuService.getMenuItemById(id);
+    res.json(item);
+});
 
-    try{
-        const item = await menuService.getMenuItemById(id);
-        res.json(item);
-    }catch(err){
-        next(err);
-    }
-};
-
-exports.updateMenuItem = async (req, res, next) => {
+exports.updateMenuItem = asyncHandler(async(req, res) => {
     const id = req.params.id;
     const {name, category, price} = req.body;
+    const item = await menuService.updateMenuItem(id, name, category, price);
+    res.json(item);
+});
 
-    try{
-        const item = await menuService.updateMenuItem(id, name, category, price);
-
-        res.json(item);
-    }catch(err){
-        next(err);
-    }
-};
-
-exports.toggleAvailablity = async (req, res, next) => {
+exports.toggleAvailablity = asyncHandler(async(req, res) => {
     const id = req.params.id;
-    const {is_available} = req.body;
+    const { is_available } = req.body;
+    const item = await menuService.toggleAvailability(id, is_available);
+    res.json(item)
+});
 
-    try{
-        const item = await menuService.toggleAvailability(id, is_available);
-        res.json(item);
-    }catch(err){
-        next(err);
-    }
-}
+exports.deleteMenuItem = asyncHandler(async(req, res) => {
+    const id = req.params.id;
 
-exports.deleteMenuItem = async (req, res, next) => {
-    const id = req.params.id
-
-    try{
-        const item = await menuService.deleteMenuItem(id);
-        res.json({message: "Item deleted successfully", item});
-
-    }catch(err){
-        next(err);
-    }
-};
+    const item = await menuService.deleteMenuItem(id);
+    res.json({message : "Menu item deleted", item});
+})

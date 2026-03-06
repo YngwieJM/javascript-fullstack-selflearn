@@ -1,81 +1,47 @@
 const pool = require("../config/db");
 const orderService = require("../services/orders.service");
+const asyncHandler = require("../utils/asyncHandler");
 
 function toInt(value){
     const n = Number.parseInt(value, 10);
     return Number.isNaN(n) ? null : n;
 }
 
-exports.createOrder = async (req, res, next) => {
-    const { table_id, staff_id } = req.body;
+exports.createOrder = asyncHandler(async(req, res) => {
+    const{table_id, staff_id} = req.body;
 
-    try{
-        const order = await orderService.createOrder(table_id, staff_id);
+    const order = await orderService.createOrder(table_id, staff_id);
+    res.status(201).json({message:"Order Created", order});
+});
 
-        res.status(201).json(order);
-    }catch(err){
-        next(err);
-    }
-};
+exports.addItemOrder = asyncHandler(async(req, res) => {
+    const orderId = req.params.id;
+    const{ menu_item_id, quantity} = req.body;
 
-exports.addItemOrder = async (req, res, next) => {
-    const orderId = req.params.id
-    const { menu_item_id, quantity} = req.body;
+    const orderItem = await orderService.addItemToOrder(orderId, menu_item_id, quantity);
+    res.status(200).json({message:"Item added to order", orderItem});
+});
 
-    try{
-       const item = await orderService.addItemToOrder(
-        orderId,
-        menu_item_id,
-        quantity
-       );
+exports.getAllOrders = asyncHandler(async(req, res) => {
+    const orders = await orderService.getAllOrders();
+    res.status(200).json({message: "All Orders", orders});
+})
 
-       res.status(201).json(item);
-    }catch(err){
-        next(err)
-    }
-};
+exports.getOrderById = asyncHandler(async(req, res) => {
+    const orderId = req.params.id;
+    const order = await orderService.getOrderById(orderId);
+    res.status(200).json({message:"Order id of " + orderId, order});
+});
 
-exports.getAllOrders = async (req, res, next) => {
-    try{
-        const orders = await orderService.getAllOrders();
-        res.json(orders);
-    }catch(err){
-        next(err);
-    }
-};
-
-exports.getOrderById = async (req, res, next) => {
+exports.closeOrder = asyncHandler(async(req, res) => {
     const orderId = req.params.id;
 
-    try{
-        const order = await orderService.getOrderById(orderId);
+    const order = await orderService.closeOrder(orderId);
+    res.status(200).json({message:"Order of id " + orderId + " is closed", order});
+});
 
-        res.json(order);
-    }catch(err){
-       next(err);
-    }
-}
-
-exports.closeOrder = async (req, res, next) => {
-    const orderId = req.params.id
-
-    try{
-        const order = await orderService.closeOrder(orderId);
-
-        res.json(order);
-    }catch(err){
-        next(err);
-    }
-}
-
-exports.deleteOrder = async (req, res, next) => {
+exports.deleteOrder = asyncHandler(async(req, res) => {
     const orderId = req.params.id;
-
-    try{
-       const order = await orderService.deleteOrder(orderId);
-       
-       res.json({message: "Order deleted", order});
-    }catch(err){
-        next(err);
-    }
-}
+    const order = await orderService.deleteOrder(orderId);
+    res.status(200).json({message:"Order of id "+ orderId + " deleted", order});
+})
