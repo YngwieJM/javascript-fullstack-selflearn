@@ -1,7 +1,7 @@
 const pool = require("../config/db");
 const menuService = require("../services/menu.service");
 
-exports.createMenuItem = async(req, res) => {
+exports.createMenuItem = async(req, res, next) => {
     const {name, category, price} = req.body;
 
     try{
@@ -10,41 +10,31 @@ exports.createMenuItem = async(req, res) => {
         res.status(201).json(item);
     }catch(err){
 
-        if(err.message === "INVALID_MENU_DATA"){
-            return res.status(400).json({message: "Invalid Menu Item"});
-        }
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getAllMenuItems = async (req, res) => {
+exports.getAllMenuItems = async (req, res, next) => {
     try{
         const item = await menuService.getAllMenuItems();
         res.json(item);
     }catch(err){
-        console.error(err);
-        res.status(500).jsone({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getMenuItemById = async (req, res) => {
+exports.getMenuItemById = async (req, res, next) => {
     const id = req.params.id;
 
     try{
-        const item = await menuService.getMenuItemById();
+        const item = await menuService.getMenuItemById(id);
         res.json(item);
     }catch(err){
-
-        if(err.message === "MENU_ITEM_NOT_FOUND"){
-            return res.json(404).json({message: "Menu Item not found"});
-        }
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.updateMenuItem = async (req, res) => {
+exports.updateMenuItem = async (req, res, next) => {
     const id = req.params.id;
     const {name, category, price} = req.body;
 
@@ -53,16 +43,11 @@ exports.updateMenuItem = async (req, res) => {
 
         res.json(item);
     }catch(err){
-
-        if(err.message ==="MENU_ITEM_NOT_FOUND"){
-            return res.status(404).json({message: "Menu item not found"});
-        }
-        console.error(err);
-        res.status({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.toggleAvailablity = async (req, res) => {
+exports.toggleAvailablity = async (req, res, next) => {
     const id = req.params.id;
     const {is_available} = req.body;
 
@@ -70,16 +55,11 @@ exports.toggleAvailablity = async (req, res) => {
         const item = await menuService.toggleAvailability(id, is_available);
         res.json(item);
     }catch(err){
-        if(err.message === "MENU_ITEM_NOT_FOUND"){
-            return res.status(404).json({message:"Menu item not found"})
-        }
-
-        console.error(err);
-        res.status(500).json({message:"Internal Server Error"});
+        next(err);
     }
 }
 
-exports.deleteMenuItem = async (req, res) => {
+exports.deleteMenuItem = async (req, res, next) => {
     const id = req.params.id
 
     try{
@@ -87,12 +67,6 @@ exports.deleteMenuItem = async (req, res) => {
         res.json({message: "Item deleted successfully", item});
 
     }catch(err){
-
-        if(err.message === "MENU_ITEM_NOT_FOUND"){
-            return res.status(404).json({message:"Menu item not found"})
-            }
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };

@@ -6,7 +6,7 @@ function toInt(value){
     return Number.isNaN(n) ? null : n;
 }
 
-exports.createOrder = async (req, res) => {
+exports.createOrder = async (req, res, next) => {
     const { table_id, staff_id } = req.body;
 
     try{
@@ -14,21 +14,11 @@ exports.createOrder = async (req, res) => {
 
         res.status(201).json(order);
     }catch(err){
-
-         if(err.message === "TABLE_NOT_FOUND"){
-            return res.status(404).json({message: "Table not found"});
-         }
-
-         if(err.message === "STAFF_NOT_FOUND"){
-            res.status(404).json({message: "Staff not found"});
-         }
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.addItemOrder = async (req, res) => {
+exports.addItemOrder = async (req, res, next) => {
     const orderId = req.params.id
     const { menu_item_id, quantity} = req.body;
 
@@ -41,39 +31,20 @@ exports.addItemOrder = async (req, res) => {
 
        res.status(201).json(item);
     }catch(err){
-        
-        if(err.message === "INVALID_QUANTITY"){
-            return res.status(400).json({message: "Invalid quantity"});
-        }
-
-        if(err.message === "ORDER_NOT_FOUND"){
-            return res.status(400).json({message: "Order not found"});
-        }
-
-        if(err.message === "ORDER_CLOSED"){
-            return res.status(400).json({message: "Order already closed"});
-        }
-
-        if(err.message === "MENU_NOT_AVAILABLE"){
-            return res.status(404).json({message: "Menu item not available"});
-        }
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err)
     }
 };
 
-exports.getAllOrders = async (req, res) => {
+exports.getAllOrders = async (req, res, next) => {
     try{
         const orders = await orderService.getAllOrders();
         res.json(orders);
     }catch(err){
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getOrderById = async (req, res) => {
+exports.getOrderById = async (req, res, next) => {
     const orderId = req.params.id;
 
     try{
@@ -81,17 +52,11 @@ exports.getOrderById = async (req, res) => {
 
         res.json(order);
     }catch(err){
-        
-        if(err.message === "ORDER_NOT_FOUND"){
-            return res.status(404).json({message: "Order not found"});
-        }
-
-        console.error(err);
-        res.status(500).json({ message: "Internal Server Error"});
+       next(err);
     }
-};
+}
 
-exports.closeOrder = async (req, res) => {
+exports.closeOrder = async (req, res, next) => {
     const orderId = req.params.id
 
     try{
@@ -99,17 +64,11 @@ exports.closeOrder = async (req, res) => {
 
         res.json(order);
     }catch(err){
-
-        if(err.message === "ORDER_NOT_FOUND_OR_ALREADY_CLOSE"){
-            return res.json(400).json({message: "Order not found or already closed"});
-        }
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
-};
+}
 
-exports.deleteOrder = async (req, res) => {
+exports.deleteOrder = async (req, res, next) => {
     const orderId = req.params.id;
 
     try{
@@ -117,12 +76,6 @@ exports.deleteOrder = async (req, res) => {
        
        res.json({message: "Order deleted", order});
     }catch(err){
-
-        if(err.message === "ORDER_NOT_FOUND"){
-            return res.status(400).json({message: "Order not found"});
-        }
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 }

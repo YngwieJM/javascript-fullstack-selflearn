@@ -1,36 +1,29 @@
 const pool = require("../config/db");
 const staffService = require("../services/staff.service");
 
-exports.createStaff = async(req, res) => {
+exports.createStaff = async(req, res, next) => {
     const {name, email, password, role} = req.body;
 
     try{
         const staff = await staffService.createStaff(name, email, password, role);
         res.status(201).json({message: "STAFF_CREATED", staff});
     }catch(err){
-
-        if(err.message === "INVALID_STAFF_DATA"){
-            res.stats(400).json({message: "Invalid staff data"})
-        }
-        console.error(err);
-        res.status(500).json({message:"Internal Server Error"});
+        next(err);
     }
     
 };
 
-exports.getAllStaff = async (req, res) => {
+exports.getAllStaff = async (req, res, next) => {
     try{
        const staff = await staffService.getAllStaff();
 
        res.status(200).json(staff)
     }catch(err){
-
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getStaffById = async (req, res) => {
+exports.getStaffById = async (req, res, next) => {
     const id = req.params.id;
 
     try{
@@ -39,15 +32,11 @@ exports.getStaffById = async (req, res) => {
         res.status(200).json(staff);
     }catch(err){
 
-        if(err.message === "STAFF_NOT_FOUND"){
-            res.status(404).json({message: "Staff not found"});
-        }
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.updateStaff = async (req, res) => {
+exports.updateStaff = async (req, res, next) => {
     const id = req.params.id;
     const{name, email, role} = req.body;
 
@@ -57,15 +46,11 @@ exports.updateStaff = async (req, res) => {
         res.status(200).json(staff);
     }catch(err){
 
-        if(err.message === "STAFF_NOT_FOUND"){
-            res.status(404).json({message:"Staff not found"})
-        }
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.updatePassword = async (req, res) => {
+exports.updatePassword = async (req, res, next) => {
     const id = req.params.id;
     const {currentPassword, newPassword} = req.body;
 
@@ -73,20 +58,12 @@ exports.updatePassword = async (req, res) => {
         const staff = await staffService.updatePassword(id, currentPassword, newPassword);
         res.json(staff);
     }catch(err){
-    if(err.message === "STAFF_NOT_FOUND"){
-        return res.status(404).json({message: "Staff not found"})
-    }
-
-    if(err.message === "INVALID_PASSWORD"){
-        return res.status (401).json({message: "Wrong Password"});
-    }
-
-    res.status(500).json({message: "Internal Server Error"});
+    next(err);
     }
 };
 
 
-exports.deleteStaff = async (req, res) => {
+exports.deleteStaff = async (req, res, next) => {
     const id = req.params.id;
 
     try{
@@ -94,12 +71,6 @@ exports.deleteStaff = async (req, res) => {
 
         res.json({message: "Staff deleted successfully", staff});
     }catch (err){
-        console.error(err);
-
-        if(err.code === "23503"){
-            return res.status(400).json({message: "Cannot delete staff member associated with an order"});
-        }
-
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };

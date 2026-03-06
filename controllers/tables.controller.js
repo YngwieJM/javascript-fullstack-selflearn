@@ -1,39 +1,28 @@
 const pool = require("../config/db");
 const tableService = require("../services/tables.service");
 
-exports.createTable = async(req, res) => {
+exports.createTable = async(req, res, next) => {
     const {table_number, capacity} = req.body;
 
     try{
        const table = await tableService.createTable(table_number, capacity);
        res.status(201).json({message:"Table created successfully", table});
     }catch(err){
-        console.error(err);
-
-        if(err.message === "INVALID_TABLE_DATA"){
-            return res.status(400).json({message: "Invalid Table Data"});
-        }
-
-        if(err.code === '23505'){
-            return res.status(400).json({message:"Table number must be unique"});
-        }
-
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getAllTables = async(req, res) => {
+exports.getAllTables = async(req, res, next) => {
     try{
         const tables = await tableService.getAllTables();
 
         res.status(200).json(tables);
     }catch(err){
-        console.error(err);
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };
 
-exports.getTableById = async(req, res) => {
+exports.getTableById = async(req, res, next) => {
     const id = req.params.id
 
     try{
@@ -41,15 +30,11 @@ exports.getTableById = async(req, res) => {
 
         res.status(200).json(table);
     }catch(err){
-
-        if(err.message === "TABLE_NOT_FOUND"){
-            return res.status(404).json({message:"Table not found"});
-        }
-        res.status(500).json({message:"Internal Server Error"});
+        next(err);
     }
 };
 
-exports.updateTable = async (req, res) => {
+exports.updateTable = async (req, res, next) => {
     const id = req.params.id;
     const{table_number, capacity} = req.body;
 
@@ -59,21 +44,11 @@ exports.updateTable = async (req, res) => {
         res.status(200).json(table);
     }catch(err){
         
-        console.error(err);
-
-        if(err.message === "TABLE_NOT_FOUND"){
-            return res.status(404).json({message: "Table not found"});
-        }
-
-        if(err.code === "23505"){
-            return res.status(400).json({message: "Tabble number must be unique"});
-        }
-
-        res.status(500).json({message: "Internal Server error"});
+        next(err);
     }
 }
 
-exports.deleteTable = async (req, res) => {
+exports.deleteTable = async (req, res, next) => {
     const id = req.params.id;
 
     try{
@@ -81,15 +56,6 @@ exports.deleteTable = async (req, res) => {
 
         res.json({message: "Table delted successfully", table});
     }catch(err){
-        console.error(err);
-
-        if(err.message === "TABLE_NOT_FOUND"){
-            return res.status(404).json({message:"Table not found"});
-        }
-
-        if(err.code === "23503"){
-            return res.status(400).json({message: "Cannot delete table with existing orders"});
-        }
-        res.status(500).json({message: "Internal Server Error"});
+        next(err);
     }
 };

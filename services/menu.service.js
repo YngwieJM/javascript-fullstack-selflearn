@@ -28,17 +28,18 @@ exports.createMenuItem = async (name, category, price) => {
     }
 
     const result = await pool.query(`
-        INSERT INTO menu_items (name, catgeory, price)
+        INSERT INTO menu_items (name, category, price)
         VALUES ($1, $2, $3) RETURNING *`, [name, category, price]);
 
     return result.rows[0];
 };
 
 exports.updateMenuItem = async (id, name, category, price) => {
+
     const result = await pool.query(
         `UPDATE menu_items SET
         name = $1, category = $2, price = $3
-        WHERE id = $4 RETURNING *`,[name, category, price]
+        WHERE id = $4 RETURNING *`,[name, category, price, id]
     );
 
     if(result.rows.length === 0){
