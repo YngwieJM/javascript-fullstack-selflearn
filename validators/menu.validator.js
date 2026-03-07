@@ -1,6 +1,6 @@
 const { z } = require("zod");
 
-const menudIdParam = z.object({
+const menuIdParam = z.object({
     params: z.object({
         id: z.string().regex(/^\d+$/, "Menu id must be a number")
     })
@@ -16,7 +16,7 @@ const createMenuSchema = z.object({
 });
 
 const updateMenuSchema = z.object({
-    params: menudIdParam.shape.params,
+    params: menuIdParam.shape.params,
     body: z.object({
         name: z.string().min(2).max(100).optional(),
         price: z.number().positive().optional(),
@@ -25,13 +25,13 @@ const updateMenuSchema = z.object({
 });
 
 const updateAvailabilitySchema = z.object({
-    params: menudIdParam.shape.params,
+    params: menuIdParam.shape.params,
     body: z.object({
         is_available: z.boolean()
     })
 });
 
-const getMenuByIdSchema = menudIdParam;
+const getMenuByIdSchema = menuIdParam;
 
 module.exports = {
     createMenuSchema,

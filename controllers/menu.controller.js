@@ -27,7 +27,7 @@ exports.updateMenuItem = asyncHandler(async(req, res) => {
     res.json(item);
 });
 
-exports.toggleAvailablity = asyncHandler(async(req, res) => {
+exports.toggleAvailability = asyncHandler(async(req, res) => {
     const id = req.params.id;
     const { is_available } = req.body;
     const item = await menuService.toggleAvailability(id, is_available);

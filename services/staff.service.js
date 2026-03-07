@@ -34,7 +34,7 @@ exports.createStaff = async (name, email, password, role) => {
         INSERT INTO staff (name, email, password, role)
         VALUES ($1, $2, $3, $4) RETURNING id, name, email, role`, [name, email, hashedPassword, role]);
 
-        return result.rowCount[0];
+        return result.rows[0];
 };
 
 exports.updateStaff = async (id, name, email, role) => {

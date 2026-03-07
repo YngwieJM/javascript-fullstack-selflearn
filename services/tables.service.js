@@ -51,6 +51,14 @@ exports.updateTable = async (id, table_number, capacity) => {
 };
 
 exports.deleteTable = async (id) => {
+    const orderRefCheck = await pool.query(
+        `SELECT 1 FROM orders WHERE table_id = $1 LIMIT 1`, [id]
+    );
+
+    if (orderRefCheck.rows.length > 0) {
+        throw new Error("TABLE_IN_USE");
+    }
+
     const result = await pool.query(
         `DELETE FROM restaurant_tables
         WHERE id = $1 RETURNING *`,[id]

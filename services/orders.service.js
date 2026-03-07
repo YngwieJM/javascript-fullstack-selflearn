@@ -26,8 +26,8 @@ exports.createOrder = async (table_id, staff_id) => {
     return result.rows[0];
 };
 
-exports.addItemToOrder = async (orderId, menu_item_id, quanity) => {
-    if(!quanity || quanity <= 0){
+exports.addItemToOrder = async (orderId, menu_item_id, quantity) => {
+    if(!quantity || quantity <= 0){
         throw new Error("INVALID_QUANTITY");
     }
 
@@ -60,7 +60,7 @@ exports.addItemToOrder = async (orderId, menu_item_id, quanity) => {
 
         const insertResult = await client.query(
             `INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_time)
-            VALUES ($1, $2, $3, $4) RETURNING *`, [orderId, menu_item_id, quanity, price]
+            VALUES ($1, $2, $3, $4) RETURNING *`, [orderId, menu_item_id, quantity, price]
         );
 
         await client.query("COMMIT");
@@ -79,7 +79,7 @@ exports.getAllOrders = async () => {
         FROM orders o
         JOIN restaurant_tables t On o.table_id = t.id
         JOIN staff s ON o.staff_id = s.id
-        ORdEr BY o.created_at DESC`
+        ORDER BY o.created_at DESC`
     );
 
     return result.rows;

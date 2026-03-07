@@ -52,6 +52,11 @@ exports.errorHandler= (err, req, res, next) => {
             message = "Invalid table data";
             break;
 
+        case "TABLE_IN_USE":
+            statusCode = 409;
+            message = "Table is still used by existing orders";
+            break;
+
         case "INVALID_PASSWORD":
             statusCode = 400;
             message = "Password is incorrect";
