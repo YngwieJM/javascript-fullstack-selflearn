@@ -1,7 +1,7 @@
 const menuService = require("../services/menu.service");
 const asyncHandler = require("../utils/asyncHandler");
 
-exports.createMenuItem = asyncHandler(async(req, res, next) => {
+exports.createMenuItem = asyncHandler(async(req, res) => {
     const {name, category, price} = req.body
 
     const item = await menuService.createMenuItem(name, category, price);

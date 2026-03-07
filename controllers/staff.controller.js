@@ -42,7 +42,7 @@ exports.updatePassword = asyncHandler(async(req, res) => {
         return res.status(403).json({message:"Access forbidden"});
     }
 
-    const staff = await staffService.updatePassword(id, currentPassword, newPassword);
+    await staffService.updatePassword(id, currentPassword, newPassword);
     res.status(200).json({message: "Password updated successfully"}); 
 });
 
