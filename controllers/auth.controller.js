@@ -3,12 +3,17 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
 const { jwtSecret } = require("../config/env");
+const PUBLIC_REGISTER_ROLES = new Set(["WAITER", "BARTENDER"]);
 
 exports.register = async (req, res) => {
     const {name, email, password, role} = req.body;
 
     if(!name || !email || !password || !role){
         return res.status(400).json({message: "All fields are required"});
+    }
+
+    if(!PUBLIC_REGISTER_ROLES.has(role)){
+        return res.status(400).json({message:"Invalid role for public registration"});
     }
 
     try{

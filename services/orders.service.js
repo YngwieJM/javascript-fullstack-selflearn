@@ -1,7 +1,12 @@
 const pool = require("../config/db");
 
 exports.createOrder = async (table_id, staff_id, requester) => {
-    const effectiveStaffId = requester && requester.role === "WAITER" ? requester.id: staff_id;
+    const isWaiter = requester && requester.role === "WAITER";
+    const effectiveStaffId = isWaiter ? requester.id : staff_id;
+
+    if(!isWaiter && !effectiveStaffId){
+        throw new Error("STAFF_ID_REQUIRED");
+    }
     
     const tableCheck = await pool.query(
         "SELECT * FROM restaurant_tables WHERE id = $1",[table_id]

@@ -13,10 +13,4 @@ router.put("/:id", authenticate, authorize("MANAGER"),validate(updateStaffSchema
 router.patch("/:id", authenticate, authorize("MANAGER", "WAITER", "BARTENDER"),validate(updatePasswordSchema), staffController.updatePassword);
 router.delete("/:id", authenticate, authorize("MANAGER"),validate(deleteStaffSchema), staffController.deleteStaff);
 
-// router.post("/", staffController.createStaff);
-// router.get("/", staffController.getAllStaff);
-// router.get("/:id", staffController.getStaffById);
-// router.put("/:id", staffController.updateStaff);
-// router.delete("/:id", staffController.deleteStaff);
-
 module.exports = router;

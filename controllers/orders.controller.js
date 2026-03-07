@@ -14,7 +14,7 @@ exports.addItemOrder = asyncHandler(async(req, res) => {
     const{ menu_item_id, quantity} = req.body;
 
     const orderItem = await orderService.addItemToOrder(orderId, menu_item_id, quantity, req.user);
-    res.status(200).json({message:"Item added to order", orderItem});
+    res.status(201).json({message:"Item added to order", orderItem});
 });
 
 exports.getAllOrders = asyncHandler(async(req, res) => {

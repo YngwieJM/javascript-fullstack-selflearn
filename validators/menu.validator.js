@@ -11,7 +11,7 @@ const createMenuSchema = z.object({
         name: z.string().min(2).max(100),
         price: z.number().positive(),
         category: z.enum(["FOOD", "DRINK", "DESSERT"]),
-        isAvailable: z.boolean().optional()
+        is_available: z.boolean().optional()
     })
 });
 

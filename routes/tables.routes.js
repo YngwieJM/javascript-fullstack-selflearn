@@ -12,10 +12,4 @@ router.get("/", authenticate, authorize("MANAGER", "WAITER"), tablesController.g
 router.get("/:id", authenticate, authorize("MANAGER", "WAITER"),validate(getTableByIdSchema), tablesController.getTableById);
 router.delete("/:id", authenticate, authorize("MANAGER"), validate(deleteTableSchema), tablesController.deleteTable);
 
-// router.post("/", tablesController.createTable);
-// router.get("/", tablesController.getAllTables);
-// router.get("/:id", tablesController.getTableById);
-// router.put("/:id", tablesController.updateTable);
-// router.delete("/:id", tablesController.deleteTable);
-
 module.exports = router;

@@ -1,4 +1,3 @@
-const pool = require("../config/db");
 const staffService = require("../services/staff.service");
 const asyncHandler = require("../utils/asyncHandler");
 

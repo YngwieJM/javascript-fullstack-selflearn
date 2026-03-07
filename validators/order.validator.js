@@ -10,7 +10,7 @@ const orderIdParam = z.object({
 const createOrderSchema = z.object({
   body: z.object({
     table_id: z.number().int().positive(),
-    staff_id: z.number().int().positive()
+    staff_id: z.number().int().positive().optional()
   })
 });
 

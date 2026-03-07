@@ -2,15 +2,18 @@ const express = require("express");
 const request = require("supertest");
 const jwt = require("jsonwebtoken");
 const { jwtSecret } = require("../config/env");
-const tablesRoutes = require("../routes/tables.routes");
+const { errorHandler } = require("../middleware/error.middleware");
 
-jest.mock("../controllers/tables.controller", () => ({
-  createTable: jest.fn((req, res) => res.status(201).json({ message: "created" })),
-  updateTable: jest.fn((req, res) => res.status(200).json({ message: "updated" })),
-  getAllTables: jest.fn((req, res) => res.status(200).json({ message: "list" })),
-  getTableById: jest.fn((req, res) => res.status(200).json({ message: "detail" })),
-  deleteTable: jest.fn((req, res) => res.status(200).json({ message: "deleted" }))
+jest.mock("../services/tables.service", () => ({
+  createTable: jest.fn(),
+  updateTable: jest.fn(),
+  getAllTables: jest.fn(),
+  getTableById: jest.fn(),
+  deleteTable: jest.fn()
 }));
+
+const tableService = require("../services/tables.service");
+const tablesRoutes = require("../routes/tables.routes");
 
 function makeToken(role, id = 1) {
   return jwt.sign({ id, role }, jwtSecret, { expiresIn: "1h" });
@@ -20,10 +23,11 @@ function createApp() {
   const app = express();
   app.use(express.json());
   app.use("/tables", tablesRoutes);
+  app.use(errorHandler);
   return app;
 }
 
-describe("Tables routes smoke QA", () => {
+describe("Tables routes QA", () => {
   let app;
   const managerToken = makeToken("MANAGER");
   const waiterToken = makeToken("WAITER");
@@ -33,13 +37,26 @@ describe("Tables routes smoke QA", () => {
     app = createApp();
   });
 
-  test("POST /tables allows MANAGER with valid payload", async () => {
+  beforeEach(() => {
+    tableService.createTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
+    tableService.updateTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 5 });
+    tableService.getAllTables.mockResolvedValue([]);
+    tableService.getTableById.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
+    tableService.deleteTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
+  });
+
+  afterEach(() => {
+    jest.clearAllMocks();
+  });
+
+  test("POST /tables allows MANAGER with valid payload and returns 201", async () => {
     const res = await request(app)
       .post("/tables")
       .set("Authorization", `Bearer ${managerToken}`)
       .send({ table_number: "A1", capacity: 4 });
 
     expect(res.status).toBe(201);
+    expect(tableService.createTable).toHaveBeenCalledWith("A1", 4);
   });
 
   test("POST /tables blocks WAITER", async () => {
@@ -50,6 +67,7 @@ describe("Tables routes smoke QA", () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("Access forbidden");
+    expect(tableService.createTable).not.toHaveBeenCalled();
   });
 
   test("GET /tables allows WAITER and MANAGER, blocks BARTENDER", async () => {
@@ -66,6 +84,7 @@ describe("Tables routes smoke QA", () => {
     expect(waiterRes.status).toBe(200);
     expect(managerRes.status).toBe(200);
     expect(bartenderRes.status).toBe(403);
+    expect(tableService.getAllTables).toHaveBeenCalledTimes(2);
   });
 
   test("GET /tables/:id rejects invalid id", async () => {
@@ -75,6 +94,7 @@ describe("Tables routes smoke QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
+    expect(tableService.getTableById).not.toHaveBeenCalled();
   });
 
   test("PUT /tables/:id rejects empty body", async () => {
@@ -85,6 +105,7 @@ describe("Tables routes smoke QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
+    expect(tableService.updateTable).not.toHaveBeenCalled();
   });
 
   test("DELETE /tables/:id validates id format", async () => {
@@ -94,11 +115,38 @@ describe("Tables routes smoke QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
+    expect(tableService.deleteTable).not.toHaveBeenCalled();
   });
 
   test("GET /tables returns 401 with missing token", async () => {
     const res = await request(app).get("/tables");
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("No token provided");
+  });
+
+  test("GET /tables/:id maps TABLE_NOT_FOUND to 404", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.getTableById.mockRejectedValueOnce(new Error("TABLE_NOT_FOUND"));
+
+    const res = await request(app)
+      .get("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Table not found");
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /tables/:id maps TABLE_IN_USE to 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.deleteTable.mockRejectedValueOnce(new Error("TABLE_IN_USE"));
+
+    const res = await request(app)
+      .delete("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Table is still used by existing orders");
+    consoleSpy.mockRestore();
   });
 });

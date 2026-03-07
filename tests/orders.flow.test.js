@@ -1,25 +1,28 @@
 const express = require("express");
 const request = require("supertest");
 const jwt = require("jsonwebtoken");
+const { jwtSecret } = require("../config/env");
+
+jest.mock("../config/db", () => ({
+  query: jest.fn(),
+  connect: jest.fn()
+}));
+
+jest.mock("../services/orders.service", () => ({
+  createOrder: jest.fn(),
+  addItemToOrder: jest.fn(),
+  getAllOrders: jest.fn(),
+  getOrderById: jest.fn(),
+  closeOrder: jest.fn(),
+  deleteOrder: jest.fn()
+}));
+
 const pool = require("../config/db");
+const ordersService = require("../services/orders.service");
 const staffService = require("../services/staff.service");
 const staffRoutes = require("../routes/staff.routes");
-const {jwtSecret}  =require("../config/env");
-
-jest.mock("../controllers/orders.controller", () => ({
-  createOrder: jest.fn((req, res) => res.status(201).json({ message: "created" })),
-  addItemOrder: jest.fn((req, res) => res.status(200).json({ message: "item added" })),
-  getAllOrders: jest.fn((req, res) => res.status(200).json({ message: "all orders" })),
-  getOrderById: jest.fn((req, res) => res.status(200).json({ message: "order by id" })),
-  closeOrder: jest.fn((req, res) => res.status(200).json({ message: "closed" })),
-  deleteOrder: jest.fn((req, res) => res.status(200).json({ message: "deleted" }))
-}));
-jest.mock("../config/db", () => ({
-  query: jest.fn()
-}));
-
-const ordersController = require("../controllers/orders.controller");
 const ordersRoutes = require("../routes/orders.routes");
+const { errorHandler } = require("../middleware/error.middleware");
 
 function makeToken(role, id = 1) {
   return jwt.sign({ id, role }, jwtSecret, { expiresIn: "1h" });
@@ -29,6 +32,7 @@ function createApp() {
   const app = express();
   app.use(express.json());
   app.use("/orders", ordersRoutes);
+  app.use(errorHandler);
   return app;
 }
 
@@ -36,6 +40,7 @@ function createStaffApp() {
   const app = express();
   app.use(express.json());
   app.use("/staff", staffRoutes);
+  app.use(errorHandler);
   return app;
 }
 
@@ -49,6 +54,15 @@ describe("Orders flow QA", () => {
     app = createApp();
   });
 
+  beforeEach(() => {
+    ordersService.createOrder.mockResolvedValue({ id: 1, table_id: 1, staff_id: 1, status: "OPEN" });
+    ordersService.addItemToOrder.mockResolvedValue({ id: 1, order_id: 1, menu_item_id: 1, quantity: 1 });
+    ordersService.getAllOrders.mockResolvedValue([]);
+    ordersService.getOrderById.mockResolvedValue({ id: 1, items: [], total: 0 });
+    ordersService.closeOrder.mockResolvedValue({ id: 1, status: "CLOSED" });
+    ordersService.deleteOrder.mockResolvedValue({ id: 1, status: "OPEN" });
+  });
+
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -56,29 +70,56 @@ describe("Orders flow QA", () => {
   test.each([
     ["WAITER", waiterToken],
     ["MANAGER", managerToken]
-  ])(
-    "POST /orders allows authenticated %s with valid body",
-    async (role, token) => {
-      const res = await request(app)
-        .post("/orders")
-        .set("Authorization", `Bearer ${token}`)
-        .send({ table_id: 1, staff_id: 1 });
+  ])("POST /orders allows authenticated %s with valid body", async (role, token) => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ table_id: 1, staff_id: 1 });
 
-      expect(res.status).toBe(201);
-      expect(ordersController.createOrder).toHaveBeenCalledTimes(1);
-    }
-  );
+    expect(res.status).toBe(201);
+    expect(ordersService.createOrder).toHaveBeenCalledTimes(1);
+    expect(ordersService.createOrder).toHaveBeenCalledWith(1, 1, expect.objectContaining({ role }));
+  });
+
+  test("POST /orders allows WAITER without staff_id in body", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${waiterToken}`)
+      .send({ table_id: 1 });
+
+    expect(res.status).toBe(201);
+    expect(ordersService.createOrder).toHaveBeenCalledWith(1, undefined, expect.objectContaining({ role: "WAITER" }));
+  });
+
+  test("POST /orders returns 400 when MANAGER omits staff_id", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.createOrder.mockRejectedValueOnce(new Error("STAFF_ID_REQUIRED"));
+
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_id: 1 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Staff id is required for manager order creation");
+    consoleSpy.mockRestore();
+  });
 
   test.each([
-    ["WAITER", waiterToken, 403],
-    ["BARTENDER", bartenderToken, 403],
-    ["MANAGER", managerToken, 200]
-  ])("GET /orders enforces manager-only access for %s", async (role, token, expected) => {
+    ["WAITER", waiterToken, 403, false],
+    ["BARTENDER", bartenderToken, 403, false],
+    ["MANAGER", managerToken, 200, true]
+  ])("GET /orders enforces manager-only access for %s", async (role, token, expected, shouldCall) => {
     const res = await request(app)
       .get("/orders")
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.status).toBe(expected);
+    if (shouldCall) {
+      expect(ordersService.getAllOrders).toHaveBeenCalledTimes(1);
+    } else {
+      expect(ordersService.getAllOrders).not.toHaveBeenCalled();
+    }
   });
 
   test.each([
@@ -94,7 +135,7 @@ describe("Orders flow QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
-    expect(ordersController.createOrder).not.toHaveBeenCalled();
+    expect(ordersService.createOrder).not.toHaveBeenCalled();
   });
 
   test.each([
@@ -115,8 +156,8 @@ describe("Orders flow QA", () => {
   });
 
   test.each([
-    ["post", "/orders/1/items", waiterToken, { menu_item_id: 1, quantity: 1 }, 200],
-    ["post", "/orders/1/items", managerToken, { menu_item_id: 1, quantity: 1 }, 200],
+    ["post", "/orders/1/items", waiterToken, { menu_item_id: 1, quantity: 1 }, 201],
+    ["post", "/orders/1/items", managerToken, { menu_item_id: 1, quantity: 1 }, 201],
     ["post", "/orders/1/items", bartenderToken, { menu_item_id: 1, quantity: 1 }, 403],
     ["get", "/orders/1", waiterToken, null, 200],
     ["get", "/orders/1", managerToken, null, 200],
@@ -126,32 +167,26 @@ describe("Orders flow QA", () => {
     ["patch", "/orders/1/close", bartenderToken, null, 403],
     ["delete", "/orders/1", managerToken, null, 200],
     ["delete", "/orders/1", waiterToken, null, 403]
-  ])(
-    "route rules: %s %s",
-    async (method, path, token, payload, expectedStatus) => {
-      let req = request(app)[method](path).set("Authorization", `Bearer ${token}`);
-      if (payload) req = req.send(payload);
+  ])("route rules: %s %s", async (method, path, token, payload, expectedStatus) => {
+    let req = request(app)[method](path).set("Authorization", `Bearer ${token}`);
+    if (payload) req = req.send(payload);
 
-      const res = await req;
-      expect(res.status).toBe(expectedStatus);
-    }
-  );
+    const res = await req;
+    expect(res.status).toBe(expectedStatus);
+  });
 
   test.each([
     ["missing token", undefined, 401, "No token provided"],
     ["invalid token", "Bearer not.a.real.token", 401, "Invalid or expired token"],
     ["malformed header", `Token ${managerToken}`, 401, "Malformed authorization header"]
-  ])(
-    "unauthorized handling for %s",
-    async (name, authHeader, expectedStatus, expectedMessage) => {
-      const req = request(app).get("/orders");
-      if (authHeader) req.set("Authorization", authHeader);
+  ])("unauthorized handling for %s", async (name, authHeader, expectedStatus, expectedMessage) => {
+    const req = request(app).get("/orders");
+    if (authHeader) req.set("Authorization", authHeader);
 
-      const res = await req;
-      expect(res.status).toBe(expectedStatus);
-      expect(res.body.message).toBe(expectedMessage);
-    }
-  );
+    const res = await req;
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
+  });
 });
 
 describe("Staff service updateStaff QA", () => {
@@ -169,12 +204,7 @@ describe("Staff service updateStaff QA", () => {
 
     pool.query.mockResolvedValue({ rows: [updatedRow] });
 
-    const result = await staffService.updateStaff(
-      1,
-      "Updated Name",
-      "updated@example.com",
-      "WAITER"
-    );
+    const result = await staffService.updateStaff(1, "Updated Name", "updated@example.com", "WAITER");
 
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(pool.query).toHaveBeenCalledWith(
@@ -276,5 +306,15 @@ describe("Staff route updatePassword authorization QA", () => {
 
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("Malformed authorization header");
+  });
+
+  test("PUT /staff/:id rejects empty update body", async () => {
+    const res = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({});
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
   });
 });
