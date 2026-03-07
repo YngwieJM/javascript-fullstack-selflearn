@@ -38,7 +38,7 @@ exports.updateMenuItem = async (id, name, category, price) => {
 
     const result = await pool.query(
         `UPDATE menu_items SET
-        name = $1, category = $2, price = $3
+        name = COALESCE($1, name), category = COALESCE($2, category), price = COALESCE($3, price)
         WHERE id = $4 RETURNING *`,[name, category, price, id]
     );
 

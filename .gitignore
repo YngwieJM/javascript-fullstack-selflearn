@@ -4,3 +4,7 @@
 .continue/mcpServers/new-mcp-server.yaml
 .continue/rules/new-rule.md
 seedPassword.js
+config/db.js
+node_modules/
+.env
+.env.*

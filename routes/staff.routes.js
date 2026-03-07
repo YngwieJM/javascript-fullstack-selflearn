@@ -2,12 +2,15 @@ const express = require("express");
 const router = express.Router();
 const staffController = require("../controllers/staff.controller");
 const  {authenticate, authorize } = require("../middleware/auth.middleware");
+const { createStaffSchema, updateStaffSchema, updatePasswordSchema } = require("../validators/staff.validator");
+const validate = require("../middleware/validate.middleware");
+
 
 router.get("/", authenticate, authorize("MANAGER"), staffController.getAllStaff);
 router.get("/:id", authenticate, authorize("MANAGER"), staffController.getStaffById);
-router.post("/", authenticate, authorize("MANAGER"), staffController.createStaff);
-router.put("/:id", authenticate, authorize("MANAGER"), staffController.updateStaff);
-router.patch("/:id", authenticate, authorize("MANAGER", "WAITER", "BARTENDER"), staffController.updatePassword);
+router.post("/", authenticate, authorize("MANAGER"), validate(createStaffSchema), staffController.createStaff);
+router.put("/:id", authenticate, authorize("MANAGER"),validate(updateStaffSchema), staffController.updateStaff);
+router.patch("/:id", authenticate, authorize("MANAGER", "WAITER", "BARTENDER"),validate(updatePasswordSchema), staffController.updatePassword);
 router.delete("/:id", authenticate, authorize("MANAGER"), staffController.deleteStaff);
 
 // router.post("/", staffController.createStaff);
