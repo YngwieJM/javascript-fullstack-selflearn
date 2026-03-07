@@ -1,5 +1,11 @@
 const { z } = require("zod");
 
+const idParamSchema = z.object({
+    params: z.object({
+        id:z.string().regex(/^\d+$/)
+    })
+});
+
 const createStaffSchema = z.object({
     body: z.object({
         name: z.string().min(2).max(100),
@@ -10,9 +16,7 @@ const createStaffSchema = z.object({
 });
 
 const updateStaffSchema = z.object({
-    params: z.object({
-        id: z.string().regex(/^\d+$/)
-    }),
+    params: idParamSchema.shape.params,
     body: z.object({
         name: z.string().min(2).max(100).optional(),
         role: z.enum(["WAITER", "BARTENDER", "MANAGER"]).optional()
@@ -20,17 +24,20 @@ const updateStaffSchema = z.object({
 });
 
 const updatePasswordSchema = z.object({
-    params: z.object({
-        id: z.string().regex(/^\d+$/)
-    }),
+    params: idParamSchema.shape.params,
     body: z.object({
         currentPassword: z.string(),
         newPassword: z.string().min(6)
     })
 });
 
+const getStaffByIdSchema = idParamSchema;
+const deleteStaffSchema = idParamSchema;
+
 module.exports = {
     createStaffSchema,
     updateStaffSchema,
-    updatePasswordSchema
+    updatePasswordSchema,
+    getStaffByIdSchema,
+    deleteStaffSchema
 };

@@ -2,7 +2,7 @@ const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = "supersecretkey"; // later move to .env
+const { jwtSecret } = require("../config/env");
 
 exports.register = async (req, res) => {
     const {name, email, password, role} = req.body;
@@ -17,19 +17,19 @@ exports.register = async (req, res) => {
 
         const result = await pool.query(
             `INSERT INTO staff (name, email, password, role)
-            VALUES($1, $2, $3, $4) RETURNING id, name, email, password`,
+            VALUES($1, $2, $3, $4) RETURNING id, name, email, role`,
             [name,email,hashedPassword,role]
         );
 
-        res.status(201).json({message: "User registered successfully"}, result.rows[0]);
+        res.status(201).json({message: "User registered successfully", user: result.rows[0]});
     }catch(err){
-        console.error(err);
 
         if(err.code === "23505"){
             return res.status(400).json({message: "Email already exists"});
 
         }
 
+        console.error(err);
         res.status(500).json({message: "Internal server error"});
     }
 };
@@ -59,7 +59,7 @@ exports.login = async (req, res) => {
         }
 
         const token = jwt.sign(
-            {id: user.id, role: user.role}, JWT_SECRET, {expiresIn: "8h"}
+            {id: user.id, role: user.role}, jwtSecret, {expiresIn: "8h"}
         );
 
         res.json({message: "Login successful", token});

@@ -10,7 +10,7 @@ router.get("/", authenticate, authorize("WAITER", "BARTENDER", "MANAGER"), menuC
 router.get("/:id", authenticate, authorize("WAITER", "BARTENDER", "MANAGER"),validate(getMenuByIdSchema), menuController.getMenuItemById);
 router.patch("/:id", authenticate, authorize("MANAGER"),validate(updateMenuSchema),  menuController.updateMenuItem);
 router.patch("/:id/availability", authenticate, authorize("MANAGER"),validate(updateAvailabilitySchema), menuController.toggleAvailability);
-router.delete("/:id", authenticate, authorize("MANAGER"), menuController.deleteMenuItem);
+router.delete("/:id", authenticate, authorize("MANAGER"),validate(getMenuByIdSchema), menuController.deleteMenuItem);
 
 // no security for these routes
 // router.post("/", menuController.createMenuItem);

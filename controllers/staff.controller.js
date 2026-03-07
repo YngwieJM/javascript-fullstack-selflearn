@@ -33,12 +33,19 @@ exports.updateStaff = asyncHandler(async(req, res) => {
 });
 
 exports.updatePassword = asyncHandler(async(req, res) => {
-    const id = req.params.id;
+    const id = Number(req.params.id);
     const {currentPassword, newPassword} = req.body;
+
+    const isManager = req.user.role === "MANAGER";
+    const isSelf = req.user.id === id;
+
+    if(!isManager && !isSelf){
+        return res.status(403).json({message:"Access forbidden"});
+    }
 
     const staff = await staffService.updatePassword(id, currentPassword, newPassword);
     res.status(200).json({message: "Password updated successfully"}); 
-})
+});
 
 
 exports.deleteStaff = asyncHandler(async(req, res) => {

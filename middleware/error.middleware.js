@@ -71,6 +71,11 @@ exports.errorHandler= (err, req, res, next) => {
             statusCode = 400;
             message = "Order closed";
             break;
+
+        case "ORDER_FORBIDDEN":
+            statusCode = 403;
+            message = "Acces forbidden";
+            break;
     }
 
     /* =========================

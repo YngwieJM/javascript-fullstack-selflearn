@@ -1,3 +1,4 @@
+require("dotenv").config({path: "./config/.env"});
 const express = require("express");
 const ordersRoute = require("./routes/orders.routes");
 const menuRoute = require("./routes/menu.routes");
