@@ -4,10 +4,8 @@
 .continue/mcpServers/new-mcp-server.yaml
 .continue/rules/new-rule.md
 seedPassword.js
-db.js
-config/db.js
 node_modules/
 .env
 .env.*
+!config/.env.example
 trains_folder/
-config/env.js

@@ -1,14 +1,14 @@
 {
   "name": "fullstack-bootcamp",
   "version": "1.0.0",
-  "description": "",
+  "description": "This is a project for self learning javascript bakcend using node.js and express",
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand tests",
     "start": "node server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Yngwie Mantiri",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
