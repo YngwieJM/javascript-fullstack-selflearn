@@ -2,11 +2,20 @@
 
 Express + PostgreSQL backend for restaurant management APIs.
 
-## Prerequisites
+## Required installations
 
 - Node.js 20+ (LTS recommended)
-- npm 10+
-- Docker Desktop (recommended for local Postgres)
+- npm 10+ (included with Node.js)
+- Database: PostgreSQL 16+ (required)
+- Docker Desktop (optional, but recommended to run PostgreSQL quickly)
+
+Check installed versions:
+
+```bash
+node -v
+npm -v
+docker -v
+```
 
 ## 1) Install dependencies
 
@@ -33,7 +42,9 @@ DB_PORT=5432
 PORT=3000
 ```
 
-## 3) Start PostgreSQL locally
+## 3) Setup database (choose one)
+
+### Option A: Docker (recommended)
 
 ```bash
 npm run db:up
@@ -45,6 +56,23 @@ Notes:
 
 ```bash
 npm run db:reset
+```
+
+### Option B: Native PostgreSQL install
+
+1. Install PostgreSQL 16+ on your machine.
+2. Create database `restaurant_db`.
+3. Execute SQL files in order:
+   - `db/init/001_schema.sql`
+   - `db/init/002_seed.sql`
+4. Update `config/.env` with your local PostgreSQL credentials:
+
+```env
+DB_USER=postgres
+DB_HOST=localhost
+DB_NAME=restaurant_db
+DB_PASSWORD=your_password
+DB_PORT=5432
 ```
 
 ## 4) Start API
@@ -77,4 +105,12 @@ Use `/auth/login` to get a JWT token.
 npm run db:up
 npm run db:logs
 npm run db:down
+```
+
+## Quick run (new PC)
+
+```bash
+npm install
+npm run db:up
+npm start
 ```
