@@ -23,7 +23,7 @@ exports.getMenuItemById = async (id) => {
 
 exports.createMenuItem = async (name, category, price) => {
 
-    if(!name || !category || price == null){
+    if(!name || !category || price === undefined || price == null){
         throw new Error("INVALID_MENU_DATA");
     }
 
