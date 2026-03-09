@@ -40,3 +40,17 @@ describe("Menu service unit QA", () => {
     await expect(menuService.deleteMenuItem(999)).rejects.toThrow("MENU_ITEM_NOT_FOUND");
   });
 });
+
+test("createMenuItem accepts zero price", async () => {
+  const row = { id: 2, name: "Free Water", category: "DRINK", price: 0 };
+  pool.query.mockResolvedValueOnce({ rows: [row] });
+
+  const result = await menuService.createMenuItem("Free Water", "DRINK", 0);
+
+  expect(pool.query).toHaveBeenCalledWith(
+    expect.stringContaining("INSERT INTO menu_items"),
+    ["Free Water", "DRINK", 0]
+  );
+  expect(result).toEqual(row);
+});
+

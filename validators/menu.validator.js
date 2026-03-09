@@ -9,7 +9,7 @@ const menuIdParam = z.object({
 const createMenuSchema = z.object({
     body: z.object({
         name: z.string().min(2).max(100),
-        price: z.number().positive(),
+        price: z.number().nonnegative(),
         category: z.enum(["FOOD", "DRINK", "DESSERT"]),
         is_available: z.boolean().optional()
     })
@@ -19,7 +19,7 @@ const updateMenuSchema = z.object({
     params: menuIdParam.shape.params,
     body: z.object({
         name: z.string().min(2).max(100).optional(),
-        price: z.number().positive().optional(),
+        price: z.number().nonnegative().optional(),
         category: z.enum(["FOOD", "DRINK", "DESSERT"]).optional(),
     }).partial().refine((data) => Object.keys(data).length > 0, {message: "At least one field must be provided"}),
 });
