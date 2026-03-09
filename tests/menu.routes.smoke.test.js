@@ -20,6 +20,10 @@ function makeToken(role, id = 1) {
   return jwt.sign({ id, role }, jwtSecret, { expiresIn: "1h" });
 }
 
+function makeExpiredToken(role, id = 1) {
+  return jwt.sign({ id, role }, jwtSecret, { expiresIn: -1 });
+}
+
 function createApp() {
   const app = express();
   app.use(express.json());
@@ -70,6 +74,33 @@ describe("Menu routes QA", () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual(expect.objectContaining({ id: 1, name: "Burger", category: "FOOD", price: 50 }));
+  });
+
+  test("POST /menu duplicate submit returns conflict on second request", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const duplicateErr = new Error("duplicate");
+    duplicateErr.code = "23505";
+    menuService.createMenuItem
+      .mockResolvedValueOnce({ id: 1, name: "Burger", category: "FOOD", price: 50 })
+      .mockRejectedValueOnce(duplicateErr);
+
+    const payload = { name: "Burger", category: "FOOD", price: 50 };
+
+    const first = await request(app)
+      .post("/menu")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .post("/menu")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(409);
+    expect(second.body.message).toBe("Duplicate value violates unique constraint");
+    expect(menuService.createMenuItem).toHaveBeenCalledTimes(2);
+    consoleSpy.mockRestore();
   });
 
   test("POST /menu accepts price=0 when payload is otherwise valid", async () => {
@@ -132,7 +163,9 @@ describe("Menu routes QA", () => {
 
   test.each([
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("POST /menu returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const res = await request(app)
       .post("/menu")
@@ -249,9 +282,28 @@ describe("Menu routes QA", () => {
     expect(menuService.updateMenuItem).toHaveBeenCalledWith("1", undefined, undefined, 0);
   });
 
+  test("PATCH /menu/:id supports retry with identical payload", async () => {
+    const payload = { price: 60 };
+
+    const first = await request(app)
+      .patch("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .patch("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(menuService.updateMenuItem).toHaveBeenCalledTimes(2);
+  });
+
   test.each([
     [{ price: -1 }],
     [{ category: "SNACK" }],
+    [{ category: "   " }],
     [{ name: "A" }],
     [{ name: 123 }],
     [{ name: "A".repeat(101) }],
@@ -296,7 +348,9 @@ describe("Menu routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("PATCH /menu/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).patch("/menu/1").send({ price: 10 });
     if (authHeader) req.set("Authorization", authHeader);
@@ -330,6 +384,24 @@ describe("Menu routes QA", () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual(expect.objectContaining({ id: 1, is_available: false }));
     expect(menuService.toggleAvailability).toHaveBeenCalledWith("1", false);
+  });
+
+  test("PATCH /menu/:id/availability supports repeated request with same state", async () => {
+    const payload = { is_available: false };
+
+    const first = await request(app)
+      .patch("/menu/1/availability")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .patch("/menu/1/availability")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(menuService.toggleAvailability).toHaveBeenCalledTimes(2);
   });
 
   test.each([
@@ -374,7 +446,9 @@ describe("Menu routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("PATCH /menu/:id/availability returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).patch("/menu/1/availability").send({ is_available: true });
     if (authHeader) req.set("Authorization", authHeader);
@@ -425,7 +499,9 @@ describe("Menu routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("DELETE /menu/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).delete("/menu/1");
     if (authHeader) req.set("Authorization", authHeader);
@@ -474,6 +550,27 @@ describe("Menu routes QA", () => {
     consoleSpy.mockRestore();
   });
 
+  test("DELETE /menu/:id returns 404 on repeated delete retry", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    menuService.deleteMenuItem
+      .mockResolvedValueOnce({ id: 1, name: "Burger" })
+      .mockRejectedValueOnce(new Error("MENU_ITEM_NOT_FOUND"));
+
+    const first = await request(app)
+      .delete("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    const second = await request(app)
+      .delete("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(404);
+    expect(second.body.message).toBe("Menu item not found");
+    expect(menuService.deleteMenuItem).toHaveBeenCalledTimes(2);
+    consoleSpy.mockRestore();
+  });
+
   test("GET /menu returns 401 with missing token", async () => {
     const res = await request(app).get("/menu");
     expect(res.status).toBe(401);
@@ -494,6 +591,16 @@ describe("Menu routes QA", () => {
     const res = await request(app)
       .get("/menu")
       .set("Authorization", "Bearer not.a.real.token");
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid or expired token");
+    expect(menuService.getAllMenuItems).not.toHaveBeenCalled();
+  });
+
+  test("GET /menu returns 401 with expired token", async () => {
+    const res = await request(app)
+      .get("/menu")
+      .set("Authorization", `Bearer ${makeExpiredToken("MANAGER")}`);
 
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("Invalid or expired token");

@@ -20,6 +20,10 @@ function makeToken(role, id = 1) {
   return jwt.sign({ id, role }, jwtSecret, { expiresIn: "1h" });
 }
 
+function makeExpiredToken(role, id = 1) {
+  return jwt.sign({ id, role }, jwtSecret, { expiresIn: -1 });
+}
+
 function createApp() {
   const app = express();
   app.use(express.json());
@@ -99,6 +103,18 @@ describe("Staff routes functional QA", () => {
     expect(staffService.getAllStaff).not.toHaveBeenCalled();
   });
 
+  test("GET /staff returns 401 for expired token", async () => {
+    const expiredManagerToken = makeExpiredToken("MANAGER", 1);
+
+    const res = await request(app)
+      .get("/staff")
+      .set("Authorization", `Bearer ${expiredManagerToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid or expired token");
+    expect(staffService.getAllStaff).not.toHaveBeenCalled();
+  });
+
   test("GET /staff/:id allows MANAGER and returns staff item", async () => {
     const res = await request(app)
       .get("/staff/2")
@@ -172,6 +188,7 @@ describe("Staff routes functional QA", () => {
     expect(res.status).toBe(201);
     expect(res.body.message).toBe("STAFF_CREATED");
     expect(res.body.staff).toEqual(expect.objectContaining({ id: 3, role: "WAITER" }));
+    expect(res.body.staff.password).toBeUndefined();
     expect(staffService.createStaff).toHaveBeenCalledWith(
       "Charlie",
       "charlie@example.com",
@@ -369,6 +386,24 @@ describe("Staff routes functional QA", () => {
     );
   });
 
+  test("PUT /staff/:id supports retry with same payload", async () => {
+    const payload = { name: "Bob Updated", email: "bob@example.com", role: "BARTENDER" };
+
+    const first = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(staffService.updateStaff).toHaveBeenCalledTimes(2);
+  });
+
   test("PUT /staff/:id accepts boundary name lengths (2 and 100)", async () => {
     const minRes = await request(app)
       .put("/staff/2")
@@ -515,6 +550,22 @@ describe("Staff routes functional QA", () => {
     );
   });
 
+  test("PATCH /staff/:id allows MANAGER self password update with current password", async () => {
+    const res = await request(app)
+      .patch("/staff/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Password updated successfully");
+    expect(staffService.updatePassword).toHaveBeenCalledWith(
+      1,
+      "current123",
+      "newpass123",
+      { skipCurrentCheck: false }
+    );
+  });
+
   test("PATCH /staff/:id requires currentPassword for self update", async () => {
     const res = await request(app)
       .patch("/staff/7")
@@ -530,6 +581,28 @@ describe("Staff routes functional QA", () => {
     const res = await request(app)
       .patch("/staff/8")
       .set("Authorization", `Bearer ${waiterToken}`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(staffService.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test("PATCH /staff/:id blocks waiter id-tampering attempt to reset manager password", async () => {
+    const res = await request(app)
+      .patch("/staff/1")
+      .set("Authorization", `Bearer ${waiterToken}`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(staffService.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test("PATCH /staff/:id blocks cross-account update for BARTENDER", async () => {
+    const res = await request(app)
+      .patch("/staff/7")
+      .set("Authorization", `Bearer ${bartenderToken}`)
       .send({ currentPassword: "current123", newPassword: "newpass123" });
 
     expect(res.status).toBe(403);
@@ -612,6 +685,30 @@ describe("Staff routes functional QA", () => {
     expect(staffService.updatePassword).not.toHaveBeenCalled();
   });
 
+  test("PATCH /staff/:id returns 401 for malformed header with extra token segments", async () => {
+    const res = await request(app)
+      .patch("/staff/7")
+      .set("Authorization", `Bearer ${managerToken} extra`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Malformed authorization header");
+    expect(staffService.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test("PATCH /staff/:id returns 401 for expired token", async () => {
+    const expiredWaiterToken = makeExpiredToken("WAITER", 7);
+
+    const res = await request(app)
+      .patch("/staff/7")
+      .set("Authorization", `Bearer ${expiredWaiterToken}`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid or expired token");
+    expect(staffService.updatePassword).not.toHaveBeenCalled();
+  });
+
   test("DELETE /staff/:id allows MANAGER", async () => {
     const res = await request(app)
       .delete("/staff/2")
@@ -680,6 +777,27 @@ describe("Staff routes functional QA", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("Resource is still referenced by related data");
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /staff/:id returns 404 on repeated delete retry", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    staffService.deleteStaff
+      .mockResolvedValueOnce({ id: 2, name: "Bob" })
+      .mockRejectedValueOnce(new Error("STAFF_NOT_FOUND"));
+
+    const first = await request(app)
+      .delete("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    const second = await request(app)
+      .delete("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(first.status).toBe(204);
+    expect(second.status).toBe(404);
+    expect(second.body.message).toBe("Staff member not found");
+    expect(staffService.deleteStaff).toHaveBeenCalledTimes(2);
     consoleSpy.mockRestore();
   });
 });

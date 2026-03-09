@@ -19,6 +19,10 @@ function makeToken(role, id = 1) {
   return jwt.sign({ id, role }, jwtSecret, { expiresIn: "1h" });
 }
 
+function makeExpiredToken(role, id = 1) {
+  return jwt.sign({ id, role }, jwtSecret, { expiresIn: -1 });
+}
+
 function createApp() {
   const app = express();
   app.use(express.json());
@@ -67,6 +71,33 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(201);
     expect(res.body).toEqual(expect.objectContaining({ id: 1, table_number: "A1", capacity: 4 }));
+  });
+
+  test("POST /tables duplicate submit returns conflict on second request", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const duplicateErr = new Error("duplicate");
+    duplicateErr.code = "23505";
+    tableService.createTable
+      .mockResolvedValueOnce({ id: 1, table_number: "A1", capacity: 4 })
+      .mockRejectedValueOnce(duplicateErr);
+
+    const payload = { table_number: "A1", capacity: 4 };
+
+    const first = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(409);
+    expect(second.body.message).toBe("Duplicate value violates unique constraint");
+    expect(tableService.createTable).toHaveBeenCalledTimes(2);
+    consoleSpy.mockRestore();
   });
 
   test("POST /tables accepts boundary table_number lengths (2 and 20)", async () => {
@@ -142,7 +173,9 @@ describe("Tables routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed token header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("POST /tables returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).post("/tables").send({ table_number: "A1", capacity: 4 });
     if (authHeader) req.set("Authorization", authHeader);
@@ -218,7 +251,9 @@ describe("Tables routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("GET /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).get("/tables/1");
     if (authHeader) req.set("Authorization", authHeader);
@@ -248,6 +283,24 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(200);
     expect(tableService.updateTable).toHaveBeenCalledWith("1", undefined, 5);
+  });
+
+  test("PUT /tables/:id supports retry with identical payload", async () => {
+    const payload = { capacity: 5 };
+
+    const first = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    const second = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(tableService.updateTable).toHaveBeenCalledTimes(2);
   });
 
   test("PUT /tables/:id accepts boundary table_number lengths (2 and 20)", async () => {
@@ -302,7 +355,9 @@ describe("Tables routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("PUT /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).put("/tables/1").send({ capacity: 5 });
     if (authHeader) req.set("Authorization", authHeader);
@@ -365,7 +420,9 @@ describe("Tables routes QA", () => {
   test.each([
     ["missing token", undefined, "No token provided"],
     ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
-    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"],
+    ["expired token", `Bearer ${makeExpiredToken("MANAGER")}`, "Invalid or expired token"],
+    ["extra segments", `Bearer ${managerToken} trailing`, "Malformed authorization header"]
   ])("DELETE /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).delete("/tables/1");
     if (authHeader) req.set("Authorization", authHeader);
@@ -449,6 +506,22 @@ describe("Tables routes QA", () => {
     consoleSpy.mockRestore();
   });
 
+  test("PUT /tables/:id maps referenced resource error to 409 when table has related orders", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const referencedErr = new Error("referenced");
+    referencedErr.code = "23503";
+    tableService.updateTable.mockRejectedValueOnce(referencedErr);
+
+    const res = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "B2" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Resource is still referenced by related data");
+    consoleSpy.mockRestore();
+  });
+
   test("DELETE /tables/:id maps TABLE_IN_USE to 409", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     tableService.deleteTable.mockRejectedValueOnce(new Error("TABLE_IN_USE"));
@@ -472,6 +545,27 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe("Table not found");
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /tables/:id returns 404 on repeated delete retry", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.deleteTable
+      .mockResolvedValueOnce({ id: 1, table_number: "A1", capacity: 4 })
+      .mockRejectedValueOnce(new Error("TABLE_NOT_FOUND"));
+
+    const first = await request(app)
+      .delete("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    const second = await request(app)
+      .delete("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(404);
+    expect(second.body.message).toBe("Table not found");
+    expect(tableService.deleteTable).toHaveBeenCalledTimes(2);
     consoleSpy.mockRestore();
   });
 });

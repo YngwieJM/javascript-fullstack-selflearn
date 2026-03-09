@@ -57,6 +57,7 @@ describe("Auth flow QA", () => {
       email: "alice@example.com",
       role: "WAITER"
     });
+    expect(res.body.user.password).toBeUndefined();
     expect(pool.query).toHaveBeenCalledTimes(1);
     expect(pool.query).toHaveBeenCalledWith(
       expect.stringContaining("RETURNING id, name, email, role"),
@@ -170,6 +171,33 @@ describe("Auth flow QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Email already exists");
+  });
+
+  test("POST /auth/register returns duplicate response on retry with same email", async () => {
+    bcrypt.hash.mockResolvedValue("hashed-password");
+    const duplicateErr = new Error("duplicate");
+    duplicateErr.code = "23505";
+
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 1, name: "Alice", email: "alice@example.com", role: "WAITER" }]
+      })
+      .mockRejectedValueOnce(duplicateErr);
+
+    const payload = {
+      name: "Alice",
+      email: "alice@example.com",
+      password: "secret123",
+      role: "WAITER"
+    };
+
+    const first = await request(app).post("/auth/register").send(payload);
+    const second = await request(app).post("/auth/register").send(payload);
+
+    expect(first.status).toBe(201);
+    expect(second.status).toBe(400);
+    expect(second.body.message).toBe("Email already exists");
+    expect(pool.query).toHaveBeenCalledTimes(2);
   });
 
   test("POST /auth/register returns 500 when password hashing fails", async () => {
@@ -307,6 +335,17 @@ describe("Auth flow QA", () => {
       "If the account exists, a password reset instruction has been generated"
     );
     expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledWith("SELECT id FROM staff WHERE email = $1", ["unknown@example.com"]);
+    expect(
+      pool.query.mock.calls.some(
+        ([sql]) => typeof sql === "string" && sql.includes("INSERT INTO password_reset_tokens")
+      )
+    ).toBe(false);
+    expect(
+      pool.query.mock.calls.some(
+        ([sql]) => typeof sql === "string" && sql.includes("DELETE FROM password_reset_tokens")
+      )
+    ).toBe(false);
   });
 
   test("POST /auth/forgot-password creates reset token for known email", async () => {
@@ -398,6 +437,18 @@ describe("Auth flow QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Invalid or expired reset token");
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(bcrypt.hash).not.toHaveBeenCalled();
+    expect(
+      pool.query.mock.calls.some(
+        ([sql]) => typeof sql === "string" && sql.includes("UPDATE staff SET password")
+      )
+    ).toBe(false);
+    expect(
+      pool.query.mock.calls.some(
+        ([sql]) => typeof sql === "string" && sql.includes("UPDATE password_reset_tokens SET used_at")
+      )
+    ).toBe(false);
   });
 
   test("POST /auth/reset-password updates password with valid token", async () => {
@@ -417,6 +468,27 @@ describe("Auth flow QA", () => {
     expect(res.body.message).toBe("Password reset successful");
     expect(bcrypt.hash).toHaveBeenCalledWith("newpass123", 10);
     expect(pool.query).toHaveBeenCalledTimes(4);
+  });
+
+  test("POST /auth/reset-password rejects replay using the same token", async () => {
+    bcrypt.hash.mockResolvedValueOnce("new-hash");
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 99, staff_id: 7 }] }) // first attempt: find token
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] }) // update password
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }) // mark used
+      .mockResolvedValueOnce({ rows: [] }) // invalidate others
+      .mockResolvedValueOnce({ rows: [] }); // second attempt: token lookup fails
+
+    const payload = { token: "single-use-token", newPassword: "newpass123" };
+
+    const first = await request(app).post("/auth/reset-password").send(payload);
+    const second = await request(app).post("/auth/reset-password").send(payload);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(400);
+    expect(second.body.message).toBe("Invalid or expired reset token");
+    expect(bcrypt.hash).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledTimes(5);
   });
 
   test("POST /auth/reset-password rejects short new password", async () => {

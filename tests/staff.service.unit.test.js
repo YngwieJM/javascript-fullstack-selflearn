@@ -69,6 +69,8 @@ describe("Staff service unit QA", () => {
 
     await expect(staffService.updatePassword(999, "old", "newpass123")).rejects.toThrow("STAFF_NOT_FOUND");
     expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(bcrypt.hash).not.toHaveBeenCalled();
+    expect(pool.query).toHaveBeenCalledTimes(1);
   });
 
   test("updatePassword throws INVALID_PASSWORD for wrong current password", async () => {
@@ -76,6 +78,8 @@ describe("Staff service unit QA", () => {
     bcrypt.compare.mockResolvedValueOnce(false);
 
     await expect(staffService.updatePassword(1, "wrong-old", "newpass123")).rejects.toThrow("INVALID_PASSWORD");
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(bcrypt.hash).not.toHaveBeenCalled();
   });
 
   test("updatePassword updates hash when current password is valid", async () => {
