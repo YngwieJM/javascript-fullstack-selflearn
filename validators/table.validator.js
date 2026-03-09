@@ -8,7 +8,7 @@ const idParam = z.object({
 
 const createTableSchema = z.object({
     body: z.object({
-        table_number: z.string().min(2).max(20),
+        table_number: z.string().trim().min(2).max(20),
         capacity: z.number().int().positive()
     })
 });
@@ -16,7 +16,7 @@ const createTableSchema = z.object({
 const updateTableSchema = z.object({
     params: idParam.shape.params,
     body: z.object({
-        table_number: z.string().min(2).max(20).optional(),
+        table_number: z.string().trim().min(2).max(20).optional(),
         capacity: z.number().int().positive().optional()
     }).refine(data => data.table_number || data.capacity, {
         message: "At least one field must be provided"

@@ -62,6 +62,37 @@ describe("Menu routes QA", () => {
     expect(menuService.createMenuItem).toHaveBeenCalledWith("Burger", "FOOD", 50);
   });
 
+  test("POST /menu accepts price=0 when payload is otherwise valid", async () => {
+    const res = await request(app)
+      .post("/menu")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Water", category: "DRINK", price: 0 });
+
+    expect(res.status).toBe(201);
+    expect(menuService.createMenuItem).toHaveBeenCalledWith("Water", "DRINK", 0);
+  });
+
+  test.each([
+    [{ category: "FOOD", price: 10 }],
+    [{ name: "Burger", price: 10 }],
+    [{ name: "Burger", category: "FOOD" }],
+    [{ name: "Burger", category: "FOOD", price: -1 }],
+    [{ name: "Burger", category: "FOOD", price: "10" }],
+    [{ name: "Burger", category: "FOOD", price: null }],
+    [{ name: "", category: "FOOD", price: 10 }],
+    [{ name: "   ", category: "FOOD", price: 10 }],
+    [{ name: "Burger", category: "   ", price: 10 }]
+  ])("POST /menu rejects invalid payload %j", async (payload) => {
+    const res = await request(app)
+      .post("/menu")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(menuService.createMenuItem).not.toHaveBeenCalled();
+  });
+
   test("POST /menu blocks WAITER", async () => {
     const res = await request(app)
       .post("/menu")
@@ -107,6 +138,57 @@ describe("Menu routes QA", () => {
     expect(menuService.updateMenuItem).not.toHaveBeenCalled();
   });
 
+  test("PATCH /menu/:id allows MANAGER to set price=0", async () => {
+    const res = await request(app)
+      .patch("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ price: 0 });
+
+    expect(res.status).toBe(200);
+    expect(menuService.updateMenuItem).toHaveBeenCalledWith("1", undefined, undefined, 0);
+  });
+
+  test.each([
+    [{ price: -1 }],
+    [{ category: "SNACK" }],
+    [{ name: "A" }],
+    [{ name: 123 }]
+  ])("PATCH /menu/:id rejects invalid update payload %j", async (payload) => {
+    const res = await request(app)
+      .patch("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(menuService.updateMenuItem).not.toHaveBeenCalled();
+  });
+
+  test("PATCH /menu/:id rejects whitespace-only name", async () => {
+    const res = await request(app)
+      .patch("/menu/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(menuService.updateMenuItem).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [{ is_available: "true" }],
+    [{}]
+  ])("PATCH /menu/:id/availability rejects invalid payload %j", async (payload) => {
+    const res = await request(app)
+      .patch("/menu/1/availability")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(menuService.toggleAvailability).not.toHaveBeenCalled();
+  });
+
   test("DELETE /menu/:id blocks WAITER and allows MANAGER", async () => {
     const waiterRes = await request(app)
       .delete("/menu/1")
@@ -124,6 +206,16 @@ describe("Menu routes QA", () => {
     const res = await request(app).get("/menu");
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("No token provided");
+  });
+
+  test("GET /menu returns 401 with malformed authorization header", async () => {
+    const res = await request(app)
+      .get("/menu")
+      .set("Authorization", `Token ${managerToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Malformed authorization header");
+    expect(menuService.getAllMenuItems).not.toHaveBeenCalled();
   });
 
   test("GET /menu/:id maps MENU_ITEM_NOT_FOUND to 404", async () => {

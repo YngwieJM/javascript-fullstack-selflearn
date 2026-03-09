@@ -77,6 +77,36 @@ describe("Auth flow QA", () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
+  test.each([
+    [{ email: "alice@example.com", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "alice@example.com", role: "WAITER" }],
+    [{ name: "A", email: "alice@example.com", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "alice@example.com", password: "123", role: "WAITER" }],
+    [{ name: "Alice", email: "invalid", password: "secret123", role: "WAITER" }],
+    [{ name: null, email: "alice@example.com", password: "secret123", role: "WAITER" }],
+    [{ name: 12, email: "alice@example.com", password: "secret123", role: "WAITER" }]
+  ])("POST /auth/register rejects invalid payload %j", async (payload) => {
+    const res = await request(app).post("/auth/register").send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/register rejects whitespace-only name", async () => {
+    const res = await request(app).post("/auth/register").send({
+      name: "   ",
+      email: "space@example.com",
+      password: "secret123",
+      role: "WAITER"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
   test("POST /auth/register handles duplicate email", async () => {
     bcrypt.hash.mockResolvedValue("hashed-password");
     const err = new Error("duplicate");
@@ -139,6 +169,22 @@ describe("Auth flow QA", () => {
     expect(res.body.message).toBe("Invalid credentials");
   });
 
+  test.each([
+    [{}],
+    [{ email: "alice@example.com" }],
+    [{ password: "secret123" }],
+    [{ email: "bad-email", password: "secret123" }],
+    [{ email: "alice@example.com", password: "123" }],
+    [{ email: null, password: "secret123" }],
+    [{ email: "alice@example.com", password: null }]
+  ])("POST /auth/login rejects invalid payload %j", async (payload) => {
+    const res = await request(app).post("/auth/login").send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
   test("POST /auth/forgot-password returns generic 200 for unknown email", async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 
@@ -181,6 +227,18 @@ describe("Auth flow QA", () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
+  test.each([
+    [{}],
+    [{ email: null }],
+    [{ email: 123 }]
+  ])("POST /auth/forgot-password rejects invalid payload %j", async (payload) => {
+    const res = await request(app).post("/auth/forgot-password").send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
   test("POST /auth/reset-password returns 400 for invalid/expired token", async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 
@@ -217,6 +275,21 @@ describe("Auth flow QA", () => {
       token: "valid-token",
       newPassword: "123"
     });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [{}],
+    [{ token: "", newPassword: "newpass123" }],
+    [{ token: "valid-token", newPassword: null }],
+    [{ token: null, newPassword: "newpass123" }],
+    [{ token: "valid-token", newPassword: 123456 }],
+    [{ token: 123, newPassword: "newpass123" }]
+  ])("POST /auth/reset-password rejects invalid payload %j", async (payload) => {
+    const res = await request(app).post("/auth/reset-password").send(payload);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");

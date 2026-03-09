@@ -59,6 +59,53 @@ describe("Tables routes QA", () => {
     expect(tableService.createTable).toHaveBeenCalledWith("A1", 4);
   });
 
+  test("POST /tables accepts boundary table_number lengths (2 and 20)", async () => {
+    const minRes = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A1", capacity: 2 });
+
+    const maxRes = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A".repeat(20), capacity: 2 });
+
+    expect(minRes.status).toBe(201);
+    expect(maxRes.status).toBe(201);
+    expect(tableService.createTable).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([
+    [{ capacity: 4 }],
+    [{ table_number: "A1" }],
+    [{ table_number: "A", capacity: 4 }],
+    [{ table_number: "A1", capacity: 0 }],
+    [{ table_number: "A1", capacity: -2 }],
+    [{ table_number: "A1", capacity: "4" }],
+    [{ table_number: "A1", capacity: null }],
+    [{ table_number: "A".repeat(21), capacity: 4 }]
+  ])("POST /tables rejects invalid payload %j", async (payload) => {
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(tableService.createTable).not.toHaveBeenCalled();
+  });
+
+  test("POST /tables rejects whitespace-only table_number", async () => {
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "   ", capacity: 4 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(tableService.createTable).not.toHaveBeenCalled();
+  });
+
   test("POST /tables blocks WAITER", async () => {
     const res = await request(app)
       .post("/tables")
@@ -108,6 +155,43 @@ describe("Tables routes QA", () => {
     expect(tableService.updateTable).not.toHaveBeenCalled();
   });
 
+  test("PUT /tables/:id allows MANAGER with valid payload", async () => {
+    const res = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ capacity: 5 });
+
+    expect(res.status).toBe(200);
+    expect(tableService.updateTable).toHaveBeenCalledWith("1", undefined, 5);
+  });
+
+  test.each([
+    ["/tables/1", { table_number: "A" }],
+    ["/tables/1", { capacity: 0 }],
+    ["/tables/1", { capacity: "4" }],
+    ["/tables/not-a-number", { table_number: "A1" }]
+  ])("PUT %s rejects invalid payload %j", async (path, payload) => {
+    const res = await request(app)
+      .put(path)
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(tableService.updateTable).not.toHaveBeenCalled();
+  });
+
+  test("PUT /tables/:id rejects whitespace-only table_number", async () => {
+    const res = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "   " });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(tableService.updateTable).not.toHaveBeenCalled();
+  });
+
   test("DELETE /tables/:id validates id format", async () => {
     const res = await request(app)
       .delete("/tables/abc")
@@ -122,6 +206,16 @@ describe("Tables routes QA", () => {
     const res = await request(app).get("/tables");
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("No token provided");
+  });
+
+  test("GET /tables returns 401 with malformed token header", async () => {
+    const res = await request(app)
+      .get("/tables")
+      .set("Authorization", `Token ${managerToken}`);
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Malformed authorization header");
+    expect(tableService.getAllTables).not.toHaveBeenCalled();
   });
 
   test("GET /tables/:id maps TABLE_NOT_FOUND to 404", async () => {
