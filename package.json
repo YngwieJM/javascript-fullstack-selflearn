@@ -5,7 +5,9 @@
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand tests",
-    "start": "node server.js"
+    "start": "node server.js",
+    "perf:smoke": "k6 run tests/performance/k6.api.smoke.js",
+    "perf:baseline": "k6 run tests/performance/k6.api.baseline.js"
   },
   "keywords": [],
   "author": "Yngwie Mantiri",

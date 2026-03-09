@@ -9,6 +9,12 @@
 - Secondary: `autocannon` for quick local spot checks
 - Environment: dedicated staging DB with production-like schema and indexes
 
+## Implemented Lightweight Pack
+- Smoke script: `tests/performance/k6.api.smoke.js`
+- Baseline script: `tests/performance/k6.api.baseline.js`
+- Shared helpers: `tests/performance/k6.common.js`
+- Run guide: `tests/performance/README.md`
+
 ## Global SLO Targets
 - Read endpoints p95 latency: <= 250 ms
 - Write endpoints p95 latency: <= 400 ms
@@ -50,4 +56,3 @@
 - Nightly: baseline + short load profile
 - Pre-release: full load + stress + integrity checks
 - Fail build when p95/error-rate thresholds regress by > 15% from baseline
-
