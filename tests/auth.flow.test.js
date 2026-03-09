@@ -64,6 +64,35 @@ describe("Auth flow QA", () => {
     );
   });
 
+  test("POST /auth/register accepts boundary name lengths (2 and 100)", async () => {
+    bcrypt.hash.mockResolvedValue("hashed-password");
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 1, name: "Al", email: "al@example.com", role: "WAITER" }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ id: 2, name: "A".repeat(100), email: "max@example.com", role: "BARTENDER" }]
+      });
+
+    const minRes = await request(app).post("/auth/register").send({
+      name: "Al",
+      email: "al@example.com",
+      password: "secret123",
+      role: "WAITER"
+    });
+
+    const maxRes = await request(app).post("/auth/register").send({
+      name: "A".repeat(100),
+      email: "max@example.com",
+      password: "secret123",
+      role: "BARTENDER"
+    });
+
+    expect(minRes.status).toBe(201);
+    expect(maxRes.status).toBe(201);
+    expect(pool.query).toHaveBeenCalledTimes(2);
+  });
+
   test("POST /auth/register rejects disallowed role MANAGER", async () => {
     const res = await request(app).post("/auth/register").send({
       name: "Boss",
@@ -84,8 +113,14 @@ describe("Auth flow QA", () => {
     [{ name: "A", email: "alice@example.com", password: "secret123", role: "WAITER" }],
     [{ name: "Alice", email: "alice@example.com", password: "123", role: "WAITER" }],
     [{ name: "Alice", email: "invalid", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "alice@example.com", password: "secret123", role: "" }],
+    [{ name: "A".repeat(101), email: "toolong@example.com", password: "secret123", role: "WAITER" }],
     [{ name: null, email: "alice@example.com", password: "secret123", role: "WAITER" }],
-    [{ name: 12, email: "alice@example.com", password: "secret123", role: "WAITER" }]
+    [{ name: 12, email: "alice@example.com", password: "secret123", role: "WAITER" }],
+    [{ name: undefined, email: "alice@example.com", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: undefined, password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "alice@example.com", password: undefined, role: "WAITER" }],
+    [{ name: "Alice", email: "alice@example.com", password: "secret123", role: undefined }]
   ])("POST /auth/register rejects invalid payload %j", async (payload) => {
     const res = await request(app).post("/auth/register").send(payload);
 
@@ -99,6 +134,19 @@ describe("Auth flow QA", () => {
       name: "   ",
       email: "space@example.com",
       password: "secret123",
+      role: "WAITER"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/register rejects whitespace-only password", async () => {
+    const res = await request(app).post("/auth/register").send({
+      name: "Alice",
+      email: "alice@example.com",
+      password: "      ",
       role: "WAITER"
     });
 
@@ -124,6 +172,23 @@ describe("Auth flow QA", () => {
     expect(res.body.message).toBe("Email already exists");
   });
 
+  test("POST /auth/register returns 500 when password hashing fails", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    bcrypt.hash.mockRejectedValueOnce(new Error("hash-failed"));
+
+    const res = await request(app).post("/auth/register").send({
+      name: "Alice",
+      email: "alice@example.com",
+      password: "secret123",
+      role: "WAITER"
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Internal server error");
+    expect(pool.query).not.toHaveBeenCalled();
+    consoleSpy.mockRestore();
+  });
+
   test("POST /auth/login returns token on valid credentials", async () => {
     pool.query.mockResolvedValue({
       rows: [{ id: 7, email: "alice@example.com", password: "hashed-password", role: "WAITER" }]
@@ -140,6 +205,22 @@ describe("Auth flow QA", () => {
     expect(res.body.message).toBe("Login successful");
     expect(res.body.token).toBe("signed-token");
     expect(jwt.sign).toHaveBeenCalledTimes(1);
+  });
+
+  test("POST /auth/login accepts boundary password length 6", async () => {
+    pool.query.mockResolvedValue({
+      rows: [{ id: 7, email: "alice@example.com", password: "hashed-password", role: "WAITER" }]
+    });
+    bcrypt.compare.mockResolvedValue(true);
+    jwt.sign.mockReturnValue("signed-token");
+
+    const res = await request(app).post("/auth/login").send({
+      email: "alice@example.com",
+      password: "123456"
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Login successful");
   });
 
   test("POST /auth/login returns 401 for unknown email", async () => {
@@ -176,13 +257,42 @@ describe("Auth flow QA", () => {
     [{ email: "bad-email", password: "secret123" }],
     [{ email: "alice@example.com", password: "123" }],
     [{ email: null, password: "secret123" }],
-    [{ email: "alice@example.com", password: null }]
+    [{ email: "alice@example.com", password: null }],
+    [{ email: undefined, password: "secret123" }],
+    [{ email: "alice@example.com", password: undefined }],
+    [{ email: "", password: "secret123" }],
+    [{ email: "alice@example.com", password: "" }]
   ])("POST /auth/login rejects invalid payload %j", async (payload) => {
     const res = await request(app).post("/auth/login").send(payload);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/login rejects whitespace-only password", async () => {
+    const res = await request(app).post("/auth/login").send({
+      email: "alice@example.com",
+      password: "      "
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/login returns 500 when db query fails", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    pool.query.mockRejectedValueOnce(new Error("db-down"));
+
+    const res = await request(app).post("/auth/login").send({
+      email: "alice@example.com",
+      password: "secret123"
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Internal server error");
+    consoleSpy.mockRestore();
   });
 
   test("POST /auth/forgot-password returns generic 200 for unknown email", async () => {
@@ -217,6 +327,30 @@ describe("Auth flow QA", () => {
     expect(pool.query).toHaveBeenCalledTimes(3);
   });
 
+  test("POST /auth/forgot-password does not expose reset token in production mode", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+
+    try {
+      pool.query
+        .mockResolvedValueOnce({ rows: [{ id: 7 }] }) // find user
+        .mockResolvedValueOnce({ rows: [] }) // delete previous token
+        .mockResolvedValueOnce({ rows: [{ id: 1 }] }); // insert token
+
+      const res = await request(app).post("/auth/forgot-password").send({
+        email: "alice@example.com"
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.message).toBe(
+        "If the account exists, a password reset instruction has been generated"
+      );
+      expect(res.body.resetToken).toBeUndefined();
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+    }
+  });
+
   test("POST /auth/forgot-password rejects invalid email format", async () => {
     const res = await request(app).post("/auth/forgot-password").send({
       email: "invalid-email"
@@ -230,13 +364,28 @@ describe("Auth flow QA", () => {
   test.each([
     [{}],
     [{ email: null }],
-    [{ email: 123 }]
+    [{ email: 123 }],
+    [{ email: undefined }],
+    [{ email: "" }]
   ])("POST /auth/forgot-password rejects invalid payload %j", async (payload) => {
     const res = await request(app).post("/auth/forgot-password").send(payload);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/forgot-password returns 500 on internal error", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    pool.query.mockRejectedValueOnce(new Error("db-down"));
+
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "alice@example.com"
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Internal server error");
+    consoleSpy.mockRestore();
   });
 
   test("POST /auth/reset-password returns 400 for invalid/expired token", async () => {
@@ -287,12 +436,51 @@ describe("Auth flow QA", () => {
     [{ token: "valid-token", newPassword: null }],
     [{ token: null, newPassword: "newpass123" }],
     [{ token: "valid-token", newPassword: 123456 }],
-    [{ token: 123, newPassword: "newpass123" }]
+    [{ token: 123, newPassword: "newpass123" }],
+    [{ token: undefined, newPassword: "newpass123" }],
+    [{ token: "valid-token", newPassword: undefined }],
+    [{ token: "valid-token", newPassword: "" }]
   ])("POST /auth/reset-password rejects invalid payload %j", async (payload) => {
     const res = await request(app).post("/auth/reset-password").send(payload);
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
     expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/reset-password rejects whitespace-only token", async () => {
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "   ",
+      newPassword: "newpass123"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/reset-password rejects whitespace-only new password", async () => {
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "valid-token",
+      newPassword: "      "
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/reset-password returns 500 on internal error", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    pool.query.mockRejectedValueOnce(new Error("db-down"));
+
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "valid-token",
+      newPassword: "newpass123"
+    });
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Internal server error");
+    consoleSpy.mockRestore();
   });
 });
