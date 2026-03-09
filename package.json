@@ -5,7 +5,11 @@
   "main": "server.js",
   "scripts": {
     "test": "jest --runInBand tests",
-    "start": "node server.js"
+    "start": "node server.js",
+    "db:up": "docker compose up -d db",
+    "db:down": "docker compose down",
+    "db:logs": "docker compose logs -f db",
+    "db:reset": "docker compose down -v && docker compose up -d db"
   },
   "keywords": [],
   "author": "Yngwie Mantiri",
