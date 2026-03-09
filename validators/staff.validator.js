@@ -29,7 +29,7 @@ const updateStaffSchema = z.object({
 const updatePasswordSchema = z.object({
     params: idParamSchema.shape.params,
     body: z.object({
-        currentPassword: z.string(),
+        currentPassword: z.string().optional(),
         newPassword: z.string().min(6)
     })
 });

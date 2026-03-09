@@ -24,5 +24,6 @@ module.exports = {
     database: fromEnv("DB_NAME", "restaurant_db"),
     password: fromEnv("DB_PASSWORD", "postgres"),
     port: toNumber(process.env.DB_PORT, 5432)
-  }
+  },
+  passwordResetMinutes: toNumber(process.env.PASSWORD_RESET_MINUTES, 15)
 };

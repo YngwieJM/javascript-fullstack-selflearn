@@ -42,6 +42,12 @@ exports.updatePassword = asyncHandler(async(req, res) => {
         return res.status(403).json({message:"Access forbidden"});
     }
 
+    const skipCurrentCheck = isManager && !isSelf;
+
+    if(!skipCurrentCheck && !currentPassword){
+        return res.status(400).json({message: "Current password is required"})
+    }
+
     await staffService.updatePassword(id, currentPassword, newPassword);
     res.status(200).json({message: "Password updated successfully"}); 
 });

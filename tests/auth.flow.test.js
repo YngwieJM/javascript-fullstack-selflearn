@@ -138,4 +138,88 @@ describe("Auth flow QA", () => {
     expect(res.status).toBe(401);
     expect(res.body.message).toBe("Invalid credentials");
   });
+
+  test("POST /auth/forgot-password returns generic 200 for unknown email", async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "unknown@example.com"
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(
+      "If the account exists, a password reset instruction has been generated"
+    );
+    expect(pool.query).toHaveBeenCalledTimes(1);
+  });
+
+  test("POST /auth/forgot-password creates reset token for known email", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] }) // find user
+      .mockResolvedValueOnce({ rows: [] }) // delete previous token
+      .mockResolvedValueOnce({ rows: [{ id: 1 }] }); // insert token
+
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "alice@example.com"
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe(
+      "If the account exists, a password reset instruction has been generated"
+    );
+    expect(res.body.resetToken).toEqual(expect.any(String));
+    expect(pool.query).toHaveBeenCalledTimes(3);
+  });
+
+  test("POST /auth/forgot-password rejects invalid email format", async () => {
+    const res = await request(app).post("/auth/forgot-password").send({
+      email: "invalid-email"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
+
+  test("POST /auth/reset-password returns 400 for invalid/expired token", async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "not-valid",
+      newPassword: "newpass123"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Invalid or expired reset token");
+  });
+
+  test("POST /auth/reset-password updates password with valid token", async () => {
+    bcrypt.hash.mockResolvedValueOnce("new-hash");
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ id: 99, staff_id: 7 }] }) // find token
+      .mockResolvedValueOnce({ rows: [{ id: 7 }] }) // update password
+      .mockResolvedValueOnce({ rows: [{ id: 99 }] }) // mark used
+      .mockResolvedValueOnce({ rows: [] }); // invalidate other tokens
+
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "valid-token",
+      newPassword: "newpass123"
+    });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Password reset successful");
+    expect(bcrypt.hash).toHaveBeenCalledWith("newpass123", 10);
+    expect(pool.query).toHaveBeenCalledTimes(4);
+  });
+
+  test("POST /auth/reset-password rejects short new password", async () => {
+    const res = await request(app).post("/auth/reset-password").send({
+      token: "valid-token",
+      newPassword: "123"
+    });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(pool.query).not.toHaveBeenCalled();
+  });
 });
