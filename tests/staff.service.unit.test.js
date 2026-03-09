@@ -37,6 +37,33 @@ describe("Staff service unit QA", () => {
     expect(result).toEqual(created);
   });
 
+  test("updateStaff updates row and returns updated staff", async () => {
+    const updatedRow = {
+      id: 1,
+      name: "Updated Name",
+      email: "updated@example.com",
+      role: "WAITER"
+    };
+    pool.query.mockResolvedValueOnce({ rows: [updatedRow] });
+
+    const result = await staffService.updateStaff(1, "Updated Name", "updated@example.com", "WAITER");
+
+    expect(pool.query).toHaveBeenCalledTimes(1);
+    expect(pool.query).toHaveBeenCalledWith(
+      expect.stringContaining("name = COALESCE($1, name)"),
+      ["Updated Name", "updated@example.com", "WAITER", 1]
+    );
+    expect(result).toEqual(updatedRow);
+  });
+
+  test("updateStaff throws STAFF_NOT_FOUND when no row is updated", async () => {
+    pool.query.mockResolvedValueOnce({ rows: [] });
+
+    await expect(
+      staffService.updateStaff(999, "No Name", "missing@example.com", "WAITER")
+    ).rejects.toThrow("STAFF_NOT_FOUND");
+  });
+
   test("updatePassword throws STAFF_NOT_FOUND when id does not exist", async () => {
     pool.query.mockResolvedValueOnce({ rows: [] });
 
