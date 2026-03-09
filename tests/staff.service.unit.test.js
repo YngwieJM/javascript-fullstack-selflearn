@@ -68,4 +68,23 @@ describe("Staff service unit QA", () => {
     );
     expect(result).toEqual({ message: "Password Updated" });
   });
+
+  test("updatePassword skips current-password compare when skipCurrentCheck=true", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [{ password: "stored-hash" }] }) // select
+      .mockResolvedValueOnce({ rows: [{ id: 2 }] }); // update
+    bcrypt.hash.mockResolvedValueOnce("new-hash");
+
+    const result = await staffService.updatePassword(2, undefined, "new-pass", {
+      skipCurrentCheck: true
+    });
+
+    expect(bcrypt.compare).not.toHaveBeenCalled();
+    expect(pool.query).toHaveBeenNthCalledWith(
+      2,
+      expect.stringContaining("UPDATE staff SET password"),
+      ["new-hash", 2]
+    );
+    expect(result).toEqual({ message: "Password Updated" });
+  });
 });

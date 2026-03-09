@@ -57,4 +57,4 @@ exports.deleteStaff = asyncHandler(async(req, res) => {
     const id = req.params.id;
      await staffService.deleteStaff(id);
     res.status(204).send();
-})
+});
