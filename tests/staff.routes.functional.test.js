@@ -87,7 +87,8 @@ describe("Staff routes functional QA", () => {
 
   test.each([
     ["missing token", undefined, "No token provided"],
-    ["malformed token", `Token ${managerToken}`, "Malformed authorization header"]
+    ["malformed token", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
   ])("GET /staff returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).get("/staff");
     if (authHeader) req.set("Authorization", authHeader);
@@ -96,6 +97,29 @@ describe("Staff routes functional QA", () => {
     expect(res.status).toBe(401);
     expect(res.body.message).toBe(expectedMessage);
     expect(staffService.getAllStaff).not.toHaveBeenCalled();
+  });
+
+  test("GET /staff/:id allows MANAGER and returns staff item", async () => {
+    const res = await request(app)
+      .get("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(expect.objectContaining({ id: 2, role: "BARTENDER" }));
+    expect(staffService.getStaffById).toHaveBeenCalledWith("2");
+  });
+
+  test.each([
+    ["WAITER", waiterToken],
+    ["BARTENDER", bartenderToken]
+  ])("GET /staff/:id blocks %s", async (role, token) => {
+    const res = await request(app)
+      .get("/staff/2")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(staffService.getStaffById).not.toHaveBeenCalled();
   });
 
   test("GET /staff/:id validates malformed id", async () => {
@@ -122,6 +146,16 @@ describe("Staff routes functional QA", () => {
     consoleSpy.mockRestore();
   });
 
+  test("GET /staff/:id returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .get("/staff/2")
+      .set("Authorization", "Bearer not.a.real.token");
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid or expired token");
+    expect(staffService.getStaffById).not.toHaveBeenCalled();
+  });
+
   test("POST /staff allows MANAGER with valid payload", async () => {
     const payload = {
       name: "Charlie",
@@ -146,14 +180,47 @@ describe("Staff routes functional QA", () => {
     );
   });
 
+  test("POST /staff accepts boundary name lengths (2 and 100)", async () => {
+    const minRes = await request(app)
+      .post("/staff")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        name: "Al",
+        email: "al@example.com",
+        password: "secret123",
+        role: "WAITER"
+      });
+
+    const maxRes = await request(app)
+      .post("/staff")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        name: "A".repeat(100),
+        email: "max@example.com",
+        password: "secret123",
+        role: "BARTENDER"
+      });
+
+    expect(minRes.status).toBe(201);
+    expect(maxRes.status).toBe(201);
+    expect(staffService.createStaff).toHaveBeenCalledTimes(2);
+  });
+
   test.each([
     [{ email: "x@mail.com", password: "secret123", role: "WAITER" }],
     [{ name: "A", email: "x@mail.com", password: "secret123", role: "WAITER" }],
+    [{ name: "A".repeat(101), email: "x@mail.com", password: "secret123", role: "WAITER" }],
     [{ name: "Alice", email: "bad-email", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "x@mail.com", password: "", role: "WAITER" }],
     [{ name: "Alice", email: "x@mail.com", password: "123", role: "WAITER" }],
     [{ name: "Alice", email: "x@mail.com", password: "secret123", role: "CHEF" }],
     [{ name: null, email: "x@mail.com", password: "secret123", role: "WAITER" }],
-    [{ name: 123, email: "x@mail.com", password: "secret123", role: "WAITER" }]
+    [{ name: 123, email: "x@mail.com", password: "secret123", role: "WAITER" }],
+    [{ name: undefined, email: "x@mail.com", password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: undefined, password: "secret123", role: "WAITER" }],
+    [{ name: "Alice", email: "x@mail.com", password: undefined, role: "WAITER" }],
+    [{ name: "Alice", email: "x@mail.com", password: "secret123", role: undefined }]
   ])("POST /staff rejects invalid payload %j", async (payload) => {
     const res = await request(app)
       .post("/staff")
@@ -181,6 +248,22 @@ describe("Staff routes functional QA", () => {
     expect(staffService.createStaff).not.toHaveBeenCalled();
   });
 
+  test("POST /staff rejects whitespace-only password", async () => {
+    const res = await request(app)
+      .post("/staff")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        name: "Alice",
+        email: "alice@example.com",
+        password: "      ",
+        role: "WAITER"
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(staffService.createStaff).not.toHaveBeenCalled();
+  });
+
   test.each([
     ["WAITER", waiterToken],
     ["BARTENDER", bartenderToken]
@@ -197,6 +280,26 @@ describe("Staff routes functional QA", () => {
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("Access forbidden");
+    expect(staffService.createStaff).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("POST /staff returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).post("/staff").send({
+      name: "Charlie",
+      email: "charlie@example.com",
+      password: "secret123",
+      role: "WAITER"
+    });
+
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
     expect(staffService.createStaff).not.toHaveBeenCalled();
   });
 
@@ -218,6 +321,25 @@ describe("Staff routes functional QA", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("Duplicate value violates unique constraint");
+    consoleSpy.mockRestore();
+  });
+
+  test("POST /staff maps INVALID_STAFF_DATA to 400", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    staffService.createStaff.mockRejectedValueOnce(new Error("INVALID_STAFF_DATA"));
+
+    const res = await request(app)
+      .post("/staff")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({
+        name: "Charlie",
+        email: "charlie@example.com",
+        password: "secret123",
+        role: "WAITER"
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Invalid staff data");
     consoleSpy.mockRestore();
   });
 
@@ -247,11 +369,30 @@ describe("Staff routes functional QA", () => {
     );
   });
 
+  test("PUT /staff/:id accepts boundary name lengths (2 and 100)", async () => {
+    const minRes = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Al" });
+
+    const maxRes = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "A".repeat(100) });
+
+    expect(minRes.status).toBe(200);
+    expect(maxRes.status).toBe(200);
+    expect(staffService.updateStaff).toHaveBeenCalledTimes(2);
+  });
+
   test.each([
     ["/staff/2", {}],
     ["/staff/2", { role: "CHEF" }],
     ["/staff/not-a-number", { name: "Alice" }],
-    ["/staff/2", { name: 123 }]
+    ["/staff/2", { name: 123 }],
+    ["/staff/2", { name: "A".repeat(101) }],
+    ["/staff/2", { email: "" }],
+    ["/staff/2", { role: "" }]
   ])("PUT %s rejects invalid update payload %j", async (path, payload) => {
     const res = await request(app)
       .put(path)
@@ -272,6 +413,64 @@ describe("Staff routes functional QA", () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
     expect(staffService.updateStaff).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["WAITER", waiterToken],
+    ["BARTENDER", bartenderToken]
+  ])("PUT /staff/:id blocks %s", async (role, token) => {
+    const res = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Bob Updated" });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(staffService.updateStaff).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("PUT /staff/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).put("/staff/2").send({ name: "Bob Updated" });
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
+    expect(staffService.updateStaff).not.toHaveBeenCalled();
+  });
+
+  test("PUT /staff/:id maps STAFF_NOT_FOUND to 404", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    staffService.updateStaff.mockRejectedValueOnce(new Error("STAFF_NOT_FOUND"));
+
+    const res = await request(app)
+      .put("/staff/999")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ name: "Unknown User" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Staff member not found");
+    consoleSpy.mockRestore();
+  });
+
+  test("PUT /staff/:id maps duplicate constraint to 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const duplicateErr = new Error("duplicate");
+    duplicateErr.code = "23505";
+    staffService.updateStaff.mockRejectedValueOnce(duplicateErr);
+
+    const res = await request(app)
+      .put("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ email: "existing@example.com" });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Duplicate value violates unique constraint");
+    consoleSpy.mockRestore();
   });
 
   test("PATCH /staff/:id allows MANAGER to reset other staff password", async () => {
@@ -341,12 +540,26 @@ describe("Staff routes functional QA", () => {
   test.each([
     ["/staff/not-a-number", { currentPassword: "old", newPassword: "newpass123" }],
     ["/staff/7", { currentPassword: "old", newPassword: "123" }],
-    ["/staff/7", { currentPassword: "old" }]
+    ["/staff/7", { currentPassword: "old" }],
+    ["/staff/7", { currentPassword: null, newPassword: "newpass123" }],
+    ["/staff/7", { currentPassword: "old", newPassword: null }],
+    ["/staff/7", { currentPassword: "old", newPassword: 123456 }]
   ])("PATCH %s rejects invalid payload %j", async (path, payload) => {
     const res = await request(app)
       .patch(path)
       .set("Authorization", `Bearer ${managerToken}`)
       .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(staffService.updatePassword).not.toHaveBeenCalled();
+  });
+
+  test("PATCH /staff/:id rejects whitespace-only newPassword", async () => {
+    const res = await request(app)
+      .patch("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ newPassword: "      " });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
@@ -367,9 +580,24 @@ describe("Staff routes functional QA", () => {
     consoleSpy.mockRestore();
   });
 
+  test("PATCH /staff/:id maps STAFF_NOT_FOUND to 404", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    staffService.updatePassword.mockRejectedValueOnce(new Error("STAFF_NOT_FOUND"));
+
+    const res = await request(app)
+      .patch("/staff/7")
+      .set("Authorization", `Bearer ${waiterToken}`)
+      .send({ currentPassword: "current123", newPassword: "newpass123" });
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Staff member not found");
+    consoleSpy.mockRestore();
+  });
+
   test.each([
     ["missing token", undefined, "No token provided"],
-    ["malformed auth header", `Token ${managerToken}`, "Malformed authorization header"]
+    ["malformed auth header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
   ])("PATCH /staff/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
     const req = request(app).patch("/staff/7").send({
       currentPassword: "current123",
@@ -403,6 +631,20 @@ describe("Staff routes functional QA", () => {
     expect(staffService.deleteStaff).not.toHaveBeenCalled();
   });
 
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("DELETE /staff/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).delete("/staff/2");
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
+    expect(staffService.deleteStaff).not.toHaveBeenCalled();
+  });
+
   test("DELETE /staff/:id validates malformed id", async () => {
     const res = await request(app)
       .delete("/staff/not-a-number")
@@ -423,6 +665,21 @@ describe("Staff routes functional QA", () => {
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe("Staff member not found");
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /staff/:id maps referenced resource error to 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const refErr = new Error("foreign key");
+    refErr.code = "23503";
+    staffService.deleteStaff.mockRejectedValueOnce(refErr);
+
+    const res = await request(app)
+      .delete("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Resource is still referenced by related data");
     consoleSpy.mockRestore();
   });
 });

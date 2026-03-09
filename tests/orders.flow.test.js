@@ -81,6 +81,21 @@ describe("Orders flow QA", () => {
     expect(ordersService.createOrder).toHaveBeenCalledWith(1, 1, expect.objectContaining({ role }));
   });
 
+  test("POST /orders returns expected success message and order shape", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_id: 1, staff_id: 1 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        message: "Order Created",
+        order: expect.objectContaining({ id: 1, table_id: 1, staff_id: 1 })
+      })
+    );
+  });
+
   test("POST /orders allows WAITER without staff_id in body", async () => {
     const res = await request(app)
       .post("/orders")
@@ -102,6 +117,90 @@ describe("Orders flow QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Staff id is required for manager order creation");
+    consoleSpy.mockRestore();
+  });
+
+  test.each([
+    [{ table_id: null, staff_id: 1 }],
+    [{ table_id: undefined, staff_id: 1 }],
+    [{ table_id: "1", staff_id: 1 }],
+    [{ table_id: "   ", staff_id: 1 }],
+    [{ table_id: 1.5, staff_id: 1 }],
+    [{ table_id: 0, staff_id: 1 }],
+    [{ table_id: 1, staff_id: null }],
+    [{ table_id: 1, staff_id: "1" }],
+    [{ table_id: 1, staff_id: -1 }]
+  ])("POST /orders rejects invalid typed payload %j", async (payload) => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(ordersService.createOrder).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    [{ category: "FOOD", price: 50000 }], // missing name
+    [{ name: "   ", category: "FOOD", price: 50000 }], // whitespace-only name
+    [{ name: "Burger", price: 50000 }], // missing category
+    [{ name: "Burger", category: "SNACK", price: 50000 }], // invalid category
+    [{ name: "Burger", category: "FOOD", price: 0 }], // price = 0
+    [{ name: "Burger", category: "FOOD", price: -1 }], // negative price
+    [{ name: "Burger", category: "FOOD", price: null }], // null price
+    [{ name: "Burger", category: "FOOD", price: undefined }], // undefined price
+    [{ name: "Burger", category: "FOOD", price: "50000" }] // wrong type price
+  ])("POST /orders rejects menu-style create payload %j", async (payload) => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send(payload);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(ordersService.createOrder).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, 401, "No token provided"],
+    ["malformed token", `Token ${managerToken}`, 401, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", 401, "Invalid or expired token"]
+  ])("POST /orders returns 401 for %s", async (name, authHeader, expectedStatus, expectedMessage) => {
+    const req = request(app).post("/orders").send({ table_id: 1, staff_id: 1 });
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
+    expect(ordersService.createOrder).not.toHaveBeenCalled();
+  });
+
+  test("POST /orders blocks wrong role BARTENDER", async () => {
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${bartenderToken}`)
+      .send({ table_id: 1, staff_id: 1 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(ordersService.createOrder).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["TABLE_NOT_FOUND", 404, "Table not found"],
+    ["STAFF_NOT_FOUND", 404, "Staff member not found"]
+  ])("POST /orders maps %s correctly", async (errorCode, expectedStatus, expectedMessage) => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.createOrder.mockRejectedValueOnce(new Error(errorCode));
+
+    const res = await request(app)
+      .post("/orders")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_id: 1, staff_id: 1 });
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
     consoleSpy.mockRestore();
   });
 
@@ -173,6 +272,70 @@ describe("Orders flow QA", () => {
 
     const res = await req;
     expect(res.status).toBe(expectedStatus);
+  });
+
+  test.each([
+    ["ORDER_NOT_FOUND", 404, "Order not found"],
+    ["ORDER_FORBIDDEN", 403, "Order forbidden"]
+  ])("GET /orders/:id maps %s", async (errorCode, expectedStatus, expectedMessage) => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.getOrderById.mockRejectedValueOnce(new Error(errorCode));
+
+    const res = await request(app)
+      .get("/orders/1")
+      .set("Authorization", `Bearer ${waiterToken}`);
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
+    consoleSpy.mockRestore();
+  });
+
+  test.each([
+    ["ORDER_NOT_FOUND_OR_ALREADY_CLOSED", 404, "Order not found or already closed"],
+    ["ORDER_FORBIDDEN", 403, "Order forbidden"]
+  ])("PATCH /orders/:id/close maps %s", async (errorCode, expectedStatus, expectedMessage) => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.closeOrder.mockRejectedValueOnce(new Error(errorCode));
+
+    const res = await request(app)
+      .patch("/orders/1/close")
+      .set("Authorization", `Bearer ${waiterToken}`);
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
+    consoleSpy.mockRestore();
+  });
+
+  test.each([
+    ["ORDER_NOT_FOUND", 404, "Order not found"],
+    ["ORDER_FORBIDDEN", 403, "Order forbidden"],
+    ["ORDER_CLOSED", 400, "Order closed"],
+    ["MENU_NOT_AVAILABLE", 400, "Menu item not available"]
+  ])("POST /orders/:id/items maps %s", async (errorCode, expectedStatus, expectedMessage) => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.addItemToOrder.mockRejectedValueOnce(new Error(errorCode));
+
+    const res = await request(app)
+      .post("/orders/1/items")
+      .set("Authorization", `Bearer ${waiterToken}`)
+      .send({ menu_item_id: 1, quantity: 1 });
+
+    expect(res.status).toBe(expectedStatus);
+    expect(res.body.message).toBe(expectedMessage);
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /orders/:id maps ORDER_NOT_FOUND", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    ordersService.deleteOrder.mockRejectedValueOnce(new Error("ORDER_NOT_FOUND"));
+
+    const res = await request(app)
+      .delete("/orders/999")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Order not found");
+    consoleSpy.mockRestore();
   });
 
   test.each([

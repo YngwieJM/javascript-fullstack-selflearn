@@ -59,6 +59,16 @@ describe("Tables routes QA", () => {
     expect(tableService.createTable).toHaveBeenCalledWith("A1", 4);
   });
 
+  test("POST /tables returns created table shape", async () => {
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A1", capacity: 4 });
+
+    expect(res.status).toBe(201);
+    expect(res.body).toEqual(expect.objectContaining({ id: 1, table_number: "A1", capacity: 4 }));
+  });
+
   test("POST /tables accepts boundary table_number lengths (2 and 20)", async () => {
     const minRes = await request(app)
       .post("/tables")
@@ -79,6 +89,7 @@ describe("Tables routes QA", () => {
     [{ capacity: 4 }],
     [{ table_number: "A1" }],
     [{ table_number: "A", capacity: 4 }],
+    [{ table_number: null, capacity: 4 }],
     [{ table_number: "A1", capacity: 0 }],
     [{ table_number: "A1", capacity: -2 }],
     [{ table_number: "A1", capacity: "4" }],
@@ -117,6 +128,31 @@ describe("Tables routes QA", () => {
     expect(tableService.createTable).not.toHaveBeenCalled();
   });
 
+  test("POST /tables blocks BARTENDER", async () => {
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${bartenderToken}`)
+      .send({ table_number: "A1", capacity: 4 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(tableService.createTable).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed token header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("POST /tables returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).post("/tables").send({ table_number: "A1", capacity: 4 });
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
+    expect(tableService.createTable).not.toHaveBeenCalled();
+  });
+
   test("GET /tables allows WAITER and MANAGER, blocks BARTENDER", async () => {
     const waiterRes = await request(app)
       .get("/tables")
@@ -134,6 +170,41 @@ describe("Tables routes QA", () => {
     expect(tableService.getAllTables).toHaveBeenCalledTimes(2);
   });
 
+  test("GET /tables returns 401 with invalid token", async () => {
+    const res = await request(app)
+      .get("/tables")
+      .set("Authorization", "Bearer not.a.real.token");
+
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe("Invalid or expired token");
+    expect(tableService.getAllTables).not.toHaveBeenCalled();
+  });
+
+  test("GET /tables/:id allows MANAGER and WAITER", async () => {
+    const managerRes = await request(app)
+      .get("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    const waiterRes = await request(app)
+      .get("/tables/1")
+      .set("Authorization", `Bearer ${waiterToken}`);
+
+    expect(managerRes.status).toBe(200);
+    expect(waiterRes.status).toBe(200);
+    expect(managerRes.body).toEqual(expect.objectContaining({ id: 1, table_number: "A1", capacity: 4 }));
+    expect(tableService.getTableById).toHaveBeenCalledTimes(2);
+  });
+
+  test("GET /tables/:id blocks BARTENDER", async () => {
+    const res = await request(app)
+      .get("/tables/1")
+      .set("Authorization", `Bearer ${bartenderToken}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(tableService.getTableById).not.toHaveBeenCalled();
+  });
+
   test("GET /tables/:id rejects invalid id", async () => {
     const res = await request(app)
       .get("/tables/abc")
@@ -141,6 +212,20 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
+    expect(tableService.getTableById).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("GET /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).get("/tables/1");
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
     expect(tableService.getTableById).not.toHaveBeenCalled();
   });
 
@@ -165,10 +250,29 @@ describe("Tables routes QA", () => {
     expect(tableService.updateTable).toHaveBeenCalledWith("1", undefined, 5);
   });
 
+  test("PUT /tables/:id accepts boundary table_number lengths (2 and 20)", async () => {
+    const minRes = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A1" });
+
+    const maxRes = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A".repeat(20) });
+
+    expect(minRes.status).toBe(200);
+    expect(maxRes.status).toBe(200);
+    expect(tableService.updateTable).toHaveBeenCalledTimes(2);
+  });
+
   test.each([
     ["/tables/1", { table_number: "A" }],
     ["/tables/1", { capacity: 0 }],
     ["/tables/1", { capacity: "4" }],
+    ["/tables/1", { table_number: null }],
+    ["/tables/1", { capacity: null }],
+    ["/tables/1", { table_number: "A".repeat(21) }],
     ["/tables/not-a-number", { table_number: "A1" }]
   ])("PUT %s rejects invalid payload %j", async (path, payload) => {
     const res = await request(app)
@@ -178,6 +282,34 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(400);
     expect(res.body.message).toBe("Validation error");
+    expect(tableService.updateTable).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["WAITER", waiterToken],
+    ["BARTENDER", bartenderToken]
+  ])("PUT /tables/:id blocks %s", async (role, token) => {
+    const res = await request(app)
+      .put("/tables/1")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ capacity: 5 });
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(tableService.updateTable).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("PUT /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).put("/tables/1").send({ capacity: 5 });
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
     expect(tableService.updateTable).not.toHaveBeenCalled();
   });
 
@@ -202,6 +334,48 @@ describe("Tables routes QA", () => {
     expect(tableService.deleteTable).not.toHaveBeenCalled();
   });
 
+  test("DELETE /tables/:id allows MANAGER and returns response shape", async () => {
+    const res = await request(app)
+      .delete("/tables/1")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        message: "Table deleted successfully",
+        table: expect.objectContaining({ id: 1, table_number: "A1" })
+      })
+    );
+    expect(tableService.deleteTable).toHaveBeenCalledWith("1");
+  });
+
+  test.each([
+    ["WAITER", waiterToken],
+    ["BARTENDER", bartenderToken]
+  ])("DELETE /tables/:id blocks %s", async (role, token) => {
+    const res = await request(app)
+      .delete("/tables/1")
+      .set("Authorization", `Bearer ${token}`);
+
+    expect(res.status).toBe(403);
+    expect(res.body.message).toBe("Access forbidden");
+    expect(tableService.deleteTable).not.toHaveBeenCalled();
+  });
+
+  test.each([
+    ["missing token", undefined, "No token provided"],
+    ["malformed header", `Token ${managerToken}`, "Malformed authorization header"],
+    ["invalid token", "Bearer not.a.real.token", "Invalid or expired token"]
+  ])("DELETE /tables/:id returns 401 for %s", async (name, authHeader, expectedMessage) => {
+    const req = request(app).delete("/tables/1");
+    if (authHeader) req.set("Authorization", authHeader);
+
+    const res = await req;
+    expect(res.status).toBe(401);
+    expect(res.body.message).toBe(expectedMessage);
+    expect(tableService.deleteTable).not.toHaveBeenCalled();
+  });
+
   test("GET /tables returns 401 with missing token", async () => {
     const res = await request(app).get("/tables");
     expect(res.status).toBe(401);
@@ -218,6 +392,36 @@ describe("Tables routes QA", () => {
     expect(tableService.getAllTables).not.toHaveBeenCalled();
   });
 
+  test("POST /tables maps INVALID_TABLE_DATA to 400", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.createTable.mockRejectedValueOnce(new Error("INVALID_TABLE_DATA"));
+
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A1", capacity: 4 });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Invalid table data");
+    consoleSpy.mockRestore();
+  });
+
+  test("POST /tables maps duplicate constraint to 409", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    const duplicateErr = new Error("duplicate");
+    duplicateErr.code = "23505";
+    tableService.createTable.mockRejectedValueOnce(duplicateErr);
+
+    const res = await request(app)
+      .post("/tables")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ table_number: "A1", capacity: 4 });
+
+    expect(res.status).toBe(409);
+    expect(res.body.message).toBe("Duplicate value violates unique constraint");
+    consoleSpy.mockRestore();
+  });
+
   test("GET /tables/:id maps TABLE_NOT_FOUND to 404", async () => {
     const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
     tableService.getTableById.mockRejectedValueOnce(new Error("TABLE_NOT_FOUND"));
@@ -225,6 +429,20 @@ describe("Tables routes QA", () => {
     const res = await request(app)
       .get("/tables/1")
       .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Table not found");
+    consoleSpy.mockRestore();
+  });
+
+  test("PUT /tables/:id maps TABLE_NOT_FOUND to 404", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.updateTable.mockRejectedValueOnce(new Error("TABLE_NOT_FOUND"));
+
+    const res = await request(app)
+      .put("/tables/999")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ capacity: 5 });
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe("Table not found");
@@ -241,6 +459,19 @@ describe("Tables routes QA", () => {
 
     expect(res.status).toBe(409);
     expect(res.body.message).toBe("Table is still used by existing orders");
+    consoleSpy.mockRestore();
+  });
+
+  test("DELETE /tables/:id maps TABLE_NOT_FOUND to 404", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    tableService.deleteTable.mockRejectedValueOnce(new Error("TABLE_NOT_FOUND"));
+
+    const res = await request(app)
+      .delete("/tables/999")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(404);
+    expect(res.body.message).toBe("Table not found");
     consoleSpy.mockRestore();
   });
 });
