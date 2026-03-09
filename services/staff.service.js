@@ -66,9 +66,9 @@ exports.updatePassword = async (id, currentPassword, newPassword, options = {}) 
     const storedPassword = staffResult.rows[0].password;
 
     if(!skipCurrentCheck){
-         const passwordMacth = await bcrypt.compare(currentPassword, storedPassword);
+         const passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
 
-    if(!passwordMacth){
+    if(!passwordMatch){
         throw new Error("INVALID_PASSWORD");
         }   
     }

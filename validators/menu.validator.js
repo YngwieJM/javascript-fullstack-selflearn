@@ -8,9 +8,9 @@ const menuIdParam = z.object({
 
 const createMenuSchema = z.object({
     body: z.object({
-        name: z.string().min(2).max(100),
-        price: z.number().nonnegative(),
-        category: z.enum(["FOOD", "DRINK", "DESSERT"]),
+        name: z.string().trim().min(1, "Name is required"),
+        category: z.string().trim().min(1, "Category is required"),
+        price: z.number().min(0, "Price must be >= 0"),
         is_available: z.boolean().optional()
     })
 });
