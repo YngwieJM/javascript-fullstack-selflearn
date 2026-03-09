@@ -250,7 +250,30 @@ describe("Staff route updatePassword authorization QA", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.message).toBe("Password updated successfully");
-    expect(staffService.updatePassword).toHaveBeenCalledWith(2, "current123", "newpass123");
+    expect(staffService.updatePassword).toHaveBeenCalledWith(
+      2,
+      "current123",
+      "newpass123",
+      { skipCurrentCheck: true }
+    );
+  });
+
+  test("allows MANAGER to reset another staff password without currentPassword", async () => {
+    jest.spyOn(staffService, "updatePassword").mockResolvedValue({ message: "Password Updated" });
+
+    const res = await request(app)
+      .patch("/staff/2")
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ newPassword: "newpass123" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.message).toBe("Password updated successfully");
+    expect(staffService.updatePassword).toHaveBeenCalledWith(
+      2,
+      undefined,
+      "newpass123",
+      { skipCurrentCheck: true }
+    );
   });
 
   test("allows WAITER to update own password", async () => {
@@ -262,7 +285,12 @@ describe("Staff route updatePassword authorization QA", () => {
       .send({ currentPassword: "current123", newPassword: "newpass123" });
 
     expect(res.status).toBe(200);
-    expect(staffService.updatePassword).toHaveBeenCalledWith(7, "current123", "newpass123");
+    expect(staffService.updatePassword).toHaveBeenCalledWith(
+      7,
+      "current123",
+      "newpass123",
+      { skipCurrentCheck: false }
+    );
   });
 
   test("blocks WAITER from updating another staff password", async () => {
@@ -286,7 +314,12 @@ describe("Staff route updatePassword authorization QA", () => {
       .send({ currentPassword: "current123", newPassword: "newpass123" });
 
     expect(res.status).toBe(200);
-    expect(staffService.updatePassword).toHaveBeenCalledWith(9, "current123", "newpass123");
+    expect(staffService.updatePassword).toHaveBeenCalledWith(
+      9,
+      "current123",
+      "newpass123",
+      { skipCurrentCheck: false }
+    );
   });
 
   test("returns 401 when token is missing", async () => {

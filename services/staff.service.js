@@ -52,7 +52,7 @@ exports.updateStaff = async (id, name, email, role) => {
         return result.rows[0];
 };
 
-exports.updatePassword = async (id, currectPassword, newPassword, options = {}) => {
+exports.updatePassword = async (id, currentPassword, newPassword, options = {}) => {
     const { skipCurrentCheck = false } = options;
 
     const staffResult = await pool.query(
@@ -66,7 +66,7 @@ exports.updatePassword = async (id, currectPassword, newPassword, options = {}) 
     const storedPassword = staffResult.rows[0].password;
 
     if(!skipCurrentCheck){
-         const passwordMacth = await bcrypt.compare(currectPassword, storedPassword);
+         const passwordMacth = await bcrypt.compare(currentPassword, storedPassword);
 
     if(!passwordMacth){
         throw new Error("INVALID_PASSWORD");
