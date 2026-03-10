@@ -39,7 +39,8 @@ exports.updateTable = async (id, table_number, capacity) => {
 
     const result = await pool.query(
         `UPDATE restaurant_tables SET
-        table_number = $1, capacity = $2
+        table_number = COALESCE($1, table_number),
+        capacity = COALESCE($2, capacity)
         WHERE id = $3 RETURNING *`, [table_number, capacity, id]
     );
 

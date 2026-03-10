@@ -1,6 +1,12 @@
 const pool = require("../config/db");
 
-exports.createOrder = async (table_id, staff_id) => {
+exports.createOrder = async (table_id, staff_id, requester) => {
+    const isWaiter = requester && requester.role === "WAITER";
+    const effectiveStaffId = isWaiter ? requester.id : staff_id;
+
+    if(!isWaiter && !effectiveStaffId){
+        throw new Error("STAFF_ID_REQUIRED");
+    }
     
     const tableCheck = await pool.query(
         "SELECT * FROM restaurant_tables WHERE id = $1",[table_id]
@@ -11,22 +17,22 @@ exports.createOrder = async (table_id, staff_id) => {
     }
 
     const staffCheck = await pool.query(
-        "SELECT * FROM staff WHERE id = $1", [staff_id]
+        "SELECT * FROM staff WHERE id = $1", [effectiveStaffId]
     );
 
-    if(staffCheck.rows.length ===0){
+    if(staffCheck.rows.length === 0){
         throw new Error("STAFF_NOT_FOUND");
     }
 
     const result = await pool.query(
         `INSERT INTO orders (table_id, staff_id)
-        VALUES ($1, $2) RETURNING *`, [table_id, staff_id]
+        VALUES ($1, $2) RETURNING *`, [table_id, effectiveStaffId]
     );
     
     return result.rows[0];
 };
 
-exports.addItemToOrder = async (orderId, menu_item_id, quantity) => {
+exports.addItemToOrder = async (orderId, menu_item_id, quantity, requester) => {
     if(!quantity || quantity <= 0){
         throw new Error("INVALID_QUANTITY");
     }
@@ -39,9 +45,14 @@ exports.addItemToOrder = async (orderId, menu_item_id, quantity) => {
         const orderCheck = await client.query(
             "SELECT * FROM orders WHERE id = $1", [orderId]
         );
+        
 
         if(orderCheck.rows.length === 0){
             throw new Error("ORDER_NOT_FOUND");
+        }
+
+        if(requester && requester.role === "WAITER" && Number(orderCheck.rows[0].staff_id) !== Number(requester.id)){
+            throw new Error("ORDER_FORBIDDEN");
         }
 
         if(orderCheck.rows[0].status !== "OPEN"){
@@ -53,7 +64,7 @@ exports.addItemToOrder = async (orderId, menu_item_id, quantity) => {
         );
 
         if(menuCheck.rows.length === 0){
-            throw new Error("MENU_NOT_AVAILABLE");
+            throw new Error("MENU_NOT_AVAILABLE"); 
         }
 
         const price = menuCheck.rows[0].price;
@@ -85,9 +96,9 @@ exports.getAllOrders = async () => {
     return result.rows;
 };
 
-exports.getOrderById = async (orderId) => {
+exports.getOrderById = async (orderId, requester) => {
     const orderResult = await pool.query(
-        `SELECT o.id, o.status, o.created_at, t.table_number, s.name AS staff_name
+        `SELECT o.id, o.status, o.created_at, o.staff_id, t.table_number, s.name AS staff_name
         FROM orders o
         JOIN restaurant_tables t ON o.table_id = t.id
         JOIN staff s ON o.staff_id = s.id
@@ -96,6 +107,10 @@ exports.getOrderById = async (orderId) => {
 
     if(orderResult.rows.length === 0){
         throw new Error("ORDER_NOT_FOUND");
+    }
+    
+    if(requester && requester.role === "WAITER" && Number(orderResult.rows[0].staff_id) !== Number(requester.id)){
+        throw new Error("ORDER_FORBIDDEN");
     }
 
     const itemResult = await pool.query(
@@ -116,15 +131,29 @@ exports.getOrderById = async (orderId) => {
     };
 };
 
-exports.closeOrder = async (orderId) => {
-    const result = await pool.query(
-        `UPDATE orders SET status = 'CLOSED'
-        WHERE id = $1 AND status = 'OPEN' RETURNING *`, [orderId]
+exports.closeOrder = async (orderId, requester) => {
+    const orderCheck = await pool.query(
+        "SELECT id, status, staff_id FROM orders WHERE id = $1", [orderId]
     );
 
-    if(result.rows.length === 0){
+    if(orderCheck.rows.length === 0){
+        throw new Error("ORDER_NOT_FOUND_OR_ALREADY_CLOSED")
+    }
+
+     if(requester && requester.role === "WAITER" && Number(orderCheck.rows[0].staff_id) !== Number(requester.id)){
+        throw new Error("ORDER_FORBIDDEN");
+    }
+
+    if(orderCheck.rows[0].status !== "OPEN"){
         throw new Error("ORDER_NOT_FOUND_OR_ALREADY_CLOSED");
     }
+    
+    const result = await pool.query(
+        `UPDATE orders SET status = 'CLOSED'
+        WHERE id = $1 RETURNING *`, [orderId]
+    );
+
+   
 
     return result.rows[0];
 };

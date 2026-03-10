@@ -17,6 +17,11 @@ exports.errorHandler= (err, req, res, next) => {
             message = "Staff member not found";
             break;
 
+        case "STAFF_ID_REQUIRED":
+            statusCode = 400;
+            message = "Staff id is required for manager order creation";
+            break;
+
         case "MENU_ITEM_NOT_FOUND":
             statusCode = 404;
             message = "Menu item not found";
@@ -34,7 +39,7 @@ exports.errorHandler= (err, req, res, next) => {
 
         case "INVALID_QUANTITY":
             statusCode = 400;
-            message = "Invalid Quantity"
+            message = "Invalid quantity"
             break;       
 
         case "INVALID_MENU_DATA":
@@ -71,6 +76,11 @@ exports.errorHandler= (err, req, res, next) => {
             statusCode = 400;
             message = "Order closed";
             break;
+
+        case "ORDER_FORBIDDEN":
+            statusCode = 403;
+            message = "Order forbidden";
+            break;
     }
 
     /* =========================
@@ -87,6 +97,6 @@ exports.errorHandler= (err, req, res, next) => {
     message = "Resource is still referenced by related data";
   }
 
-    res.status(statusCode).json({error: message});
+    res.status(statusCode).json({message});
 
 };

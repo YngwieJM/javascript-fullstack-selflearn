@@ -1,4 +1,3 @@
-const pool = require("../config/db");
 const tableService = require("../services/tables.service");
 const asyncHandler = require("../utils/asyncHandler");
 

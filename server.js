@@ -1,3 +1,4 @@
+require("dotenv").config({path: "./config/.env"});
 const express = require("express");
 const ordersRoute = require("./routes/orders.routes");
 const menuRoute = require("./routes/menu.routes");
@@ -7,7 +8,6 @@ const authRoute = require("./routes/auth.routes");
 const {errorHandler} = require("./middleware/error.middleware");
 
 const app = express();
-const PORT = 3000;
 
 app.use(express.json());
 app.use("/orders", ordersRoute);
@@ -17,6 +17,12 @@ app.use("/tables", tablesRoute);
 app.use("/auth", authRoute);
 app.use(errorHandler);
 
-app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-});
+ const PORT = Number(process.env.PORT) || 3000;
+
+if(require.main === module){
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    })
+}
+
+module.exports = app;

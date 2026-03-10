@@ -1,12 +1,11 @@
-const pool = require("../config/db");
 const menuService = require("../services/menu.service");
 const asyncHandler = require("../utils/asyncHandler");
 
-exports.createMenuItem = asyncHandler(async(req, res, next) => {
+exports.createMenuItem = asyncHandler(async(req, res) => {
     const {name, category, price} = req.body
 
     const item = await menuService.createMenuItem(name, category, price);
-    res.json(item)
+    res.status(201).json(item)
 });
 
 exports.getAllMenuItems = asyncHandler(async(req, res) => {
