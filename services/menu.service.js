@@ -1,20 +1,11 @@
 const pool = require("../config/db");
 
-exports.getAllMenuItems = async (page = 1, limit = 10) => {
-
-    const offset = (page - 1) * limit;
-
+exports.getAllMenuItems = async () => {
     const result = await pool.query(`
         SELECT id, name, category, price, is_available
-        FROM menu_items ORDER BY id LIMIT $1 OFFSET $2`, [limit, offset]);
+        FROM menu_items ORDER BY id`);
 
-    const countQuery = await pool.query("SELECT COUNT(*) FROM menu_items");
-
-    const total = parseInt(countQuery.rows[0].count, 10);
-
-    return {
-        page, limit, total, total_pages: Math.ceil(total / limit), data: result.rows
-    };
+        return result.rows;
 };
 
 exports.getMenuItemById = async (id) => {

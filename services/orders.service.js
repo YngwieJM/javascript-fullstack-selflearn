@@ -84,24 +84,16 @@ exports.addItemToOrder = async (orderId, menu_item_id, quantity, requester) => {
     }
 };
 
-exports.getAllOrders = async (page = 1, limit = 10) => {
-
-    const offset = (page - 1) * limit;
+exports.getAllOrders = async () => {
     const result = await pool.query(
         `SELECT o.id, o.status, o.created_at, t.table_number, s.name As staff_name
         FROM orders o
         JOIN restaurant_tables t On o.table_id = t.id
         JOIN staff s ON o.staff_id = s.id
-        ORDER BY o.created_at DESC LIMIT $1 OFFSET $2`, [limit, offset]
+        ORDER BY o.created_at DESC`
     );
 
-    const countQuery = await pool.query("SELECT COUNT(*) FROM orders");
-
-    const total = parseInt(countQuery.rows[0].count, 10);
-
-    return {
-        page, limit, total, total_pages: Math.ceil(total / limit), data: result.rows
-    };
+    return result.rows;
 };
 
 exports.getOrderById = async (orderId, requester) => {

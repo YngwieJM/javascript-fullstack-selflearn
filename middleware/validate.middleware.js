@@ -6,7 +6,6 @@ const validate = (schema) => (req, res, next) => {
             query: req.query
         });
 
-        req.validated = parsed;
         req.body = parsed.body ?? req.body;
         req.params = parsed.params ?? req.params;
         req.query = parsed.query ??req.query;

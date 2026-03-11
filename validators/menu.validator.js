@@ -1,5 +1,4 @@
 const { z } = require("zod");
-const { idParamSchema, paginationSchema } = require("./common.validator");
 
 const menuIdParam = z.object({
     params: z.object({
@@ -38,7 +37,5 @@ module.exports = {
     createMenuSchema,
     updateMenuSchema,
     updateAvailabilitySchema,
-    getMenuByIdSchema,
-    deleteMenuSchema: idParamSchema,
-    getMenuSchema: paginationSchema,
+    getMenuByIdSchema
 };

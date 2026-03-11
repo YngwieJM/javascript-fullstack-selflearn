@@ -9,8 +9,7 @@ exports.createTable = asyncHandler(async(req, res) => {
 });
 
 exports.getAllTables = asyncHandler(async(req, res) => {
-    const { page, limit } = req.validated?.query ?? req.query;
-    const tables = await tableService.getAllTables(page, limit);
+    const tables = await tableService.getAllTables();
     res.json(tables);
 });
 

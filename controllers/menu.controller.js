@@ -9,8 +9,7 @@ exports.createMenuItem = asyncHandler(async(req, res) => {
 });
 
 exports.getAllMenuItems = asyncHandler(async(req, res) => {
-    const { page, limit } = req.validated?.query ?? req.query;
-    const items = await menuService.getAllMenuItems(page, limit);
+    const items = await menuService.getAllMenuItems();
     res.json(items);
 });
 

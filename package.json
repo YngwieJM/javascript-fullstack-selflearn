@@ -4,13 +4,8 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "jest --runInBand tests",
-    "start": "node server.js",
-    "scenario:one-day": "node scripts/one-day-operation.scenario.js",
-    "scenario:cleanup-one-day": "node scripts/cleanup-one-day-operation.scenario.js",
-    "scenario:cleanup-one-day:full": "node scripts/cleanup-one-day-operation.scenario.js --full",
-    "menu:price-idr": "node scripts/convert-menu-prices-to-idr.js",
-    "db:reset-initial": "node scripts/reset-initial-data.js"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
