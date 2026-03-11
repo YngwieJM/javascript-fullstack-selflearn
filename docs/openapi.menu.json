@@ -39,7 +39,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "post": {
         "summary": "Create menu item (MANAGER only)",
@@ -81,7 +84,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     },
     "/menu/{id}": {
@@ -126,7 +132,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "patch": {
         "summary": "Update menu item (MANAGER only)",
@@ -168,7 +177,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "delete": {
         "summary": "Delete menu item (MANAGER only)",
@@ -203,7 +215,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     },
     "/menu/{id}/availability": {
@@ -258,7 +273,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     }
   },
@@ -342,11 +360,20 @@
     "schemas": {
       "MenuCategory": {
         "type": "string",
-        "enum": ["FOOD", "DRINK", "DESSERT"]
+        "enum": [
+          "FOOD",
+          "DRINK",
+          "DESSERT"
+        ]
       },
       "MenuItem": {
         "type": "object",
-        "required": ["id", "name", "category", "price"],
+        "required": [
+          "id",
+          "name",
+          "category",
+          "price"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -368,7 +395,11 @@
       },
       "CreateMenuRequest": {
         "type": "object",
-        "required": ["name", "category", "price"],
+        "required": [
+          "name",
+          "category",
+          "price"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -407,7 +438,9 @@
       },
       "UpdateAvailabilityRequest": {
         "type": "object",
-        "required": ["is_available"],
+        "required": [
+          "is_available"
+        ],
         "properties": {
           "is_available": {
             "type": "boolean"
@@ -416,7 +449,10 @@
       },
       "DeleteMenuResponse": {
         "type": "object",
-        "required": ["message", "item"],
+        "required": [
+          "message",
+          "item"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -428,7 +464,9 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -437,11 +475,16 @@
       },
       "ValidationErrorResponse": {
         "type": "object",
-        "required": ["message", "errors"],
+        "required": [
+          "message",
+          "errors"
+        ],
         "properties": {
           "message": {
             "type": "string",
-            "enum": ["Validation error"]
+            "enum": [
+              "Validation error"
+            ]
           },
           "errors": {
             "type": "array",
@@ -453,5 +496,25 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Staff"
+    },
+    {
+      "name": "Menu"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Tables"
+    },
+    {
+      "name": "Reports"
+    }
+  ]
 }

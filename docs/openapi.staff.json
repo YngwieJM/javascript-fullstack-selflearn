@@ -39,7 +39,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "post": {
         "summary": "Create staff (MANAGER only)",
@@ -81,7 +84,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       }
     },
     "/staff/{id}": {
@@ -126,7 +132,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "put": {
         "summary": "Update staff profile (MANAGER only)",
@@ -171,7 +180,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "patch": {
         "summary": "Update password (MANAGER, WAITER, BARTENDER)",
@@ -214,7 +226,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "delete": {
         "summary": "Delete staff (MANAGER only)",
@@ -242,7 +257,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       }
     }
   },
@@ -326,11 +344,19 @@
     "schemas": {
       "Role": {
         "type": "string",
-        "enum": ["WAITER", "BARTENDER", "MANAGER"]
+        "enum": [
+          "WAITER",
+          "BARTENDER",
+          "MANAGER"
+        ]
       },
       "StaffRecord": {
         "type": "object",
-        "required": ["id", "name", "role"],
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -352,7 +378,11 @@
       },
       "StaffDetail": {
         "type": "object",
-        "required": ["id", "name", "role"],
+        "required": [
+          "id",
+          "name",
+          "role"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -367,7 +397,12 @@
       },
       "CreateStaffRequest": {
         "type": "object",
-        "required": ["name", "email", "password", "role"],
+        "required": [
+          "name",
+          "email",
+          "password",
+          "role"
+        ],
         "properties": {
           "name": {
             "type": "string",
@@ -389,7 +424,10 @@
       },
       "CreateStaffResponse": {
         "type": "object",
-        "required": ["message", "staff"],
+        "required": [
+          "message",
+          "staff"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -419,7 +457,9 @@
       },
       "UpdatePasswordRequest": {
         "type": "object",
-        "required": ["newPassword"],
+        "required": [
+          "newPassword"
+        ],
         "properties": {
           "currentPassword": {
             "type": "string"
@@ -432,7 +472,9 @@
       },
       "MessageResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -441,7 +483,9 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -450,11 +494,16 @@
       },
       "ValidationErrorResponse": {
         "type": "object",
-        "required": ["message", "errors"],
+        "required": [
+          "message",
+          "errors"
+        ],
         "properties": {
           "message": {
             "type": "string",
-            "enum": ["Validation error"]
+            "enum": [
+              "Validation error"
+            ]
           },
           "errors": {
             "type": "array",
@@ -466,5 +515,25 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Staff"
+    },
+    {
+      "name": "Menu"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Tables"
+    },
+    {
+      "name": "Reports"
+    }
+  ]
 }

@@ -62,7 +62,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/login": {
@@ -99,7 +102,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/register": {
@@ -133,7 +139,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/reset-password": {
@@ -167,7 +176,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/menu": {
@@ -198,7 +210,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "post": {
         "summary": "Create menu item (MANAGER only)",
@@ -240,7 +255,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     },
     "/menu/{id}": {
@@ -279,7 +297,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "patch": {
         "summary": "Update menu item (MANAGER only)",
@@ -321,7 +342,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       },
       "delete": {
         "summary": "Delete menu item (MANAGER only)",
@@ -356,7 +380,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     },
     "/menu/{id}/availability": {
@@ -405,7 +432,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Menu"
+        ]
       }
     },
     "/orders": {
@@ -449,7 +479,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       },
       "get": {
         "summary": "Get all orders (MANAGER only)",
@@ -475,7 +508,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}": {
@@ -514,7 +550,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       },
       "delete": {
         "summary": "Delete order (MANAGER only)",
@@ -546,7 +585,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}/close": {
@@ -585,7 +627,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}/items": {
@@ -634,7 +679,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/staff": {
@@ -665,7 +713,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "post": {
         "summary": "Create staff (MANAGER only)",
@@ -707,7 +758,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       }
     },
     "/staff/{id}": {
@@ -746,7 +800,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "put": {
         "summary": "Update staff profile (MANAGER only)",
@@ -791,7 +848,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "patch": {
         "summary": "Update password (MANAGER, WAITER, BARTENDER)",
@@ -834,7 +894,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       },
       "delete": {
         "summary": "Delete staff (MANAGER only)",
@@ -862,7 +925,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Staff"
+        ]
       }
     },
     "/tables": {
@@ -906,7 +972,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Tables"
+        ]
       },
       "get": {
         "summary": "List tables (MANAGER or WAITER)",
@@ -935,7 +1004,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Tables"
+        ]
       }
     },
     "/tables/{id}": {
@@ -974,7 +1046,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Tables"
+        ]
       },
       "put": {
         "summary": "Update table (MANAGER only)",
@@ -1019,7 +1094,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Tables"
+        ]
       },
       "delete": {
         "summary": "Delete table (MANAGER only)",
@@ -1054,7 +1132,10 @@
           "409": {
             "$ref": "#/components/responses/ConflictError"
           }
-        }
+        },
+        "tags": [
+          "Tables"
+        ]
       }
     },
     "/reports/daily-sales": {

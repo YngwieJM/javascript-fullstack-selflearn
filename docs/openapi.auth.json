@@ -42,7 +42,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/login": {
@@ -79,7 +82,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/forgot-password": {
@@ -113,7 +119,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     },
     "/auth/reset-password": {
@@ -147,7 +156,10 @@
           "500": {
             "$ref": "#/components/responses/InternalServerError"
           }
-        }
+        },
+        "tags": [
+          "Auth"
+        ]
       }
     }
   },
@@ -179,8 +191,12 @@
           "application/json": {
             "schema": {
               "oneOf": [
-                { "$ref": "#/components/schemas/ValidationErrorResponse" },
-                { "$ref": "#/components/schemas/ErrorResponse" }
+                {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               ]
             }
           }
@@ -192,8 +208,12 @@
           "application/json": {
             "schema": {
               "oneOf": [
-                { "$ref": "#/components/schemas/ValidationErrorResponse" },
-                { "$ref": "#/components/schemas/ErrorResponse" }
+                {
+                  "$ref": "#/components/schemas/ValidationErrorResponse"
+                },
+                {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
               ]
             }
           }
@@ -213,89 +233,186 @@
     "schemas": {
       "RegisterRequest": {
         "type": "object",
-        "required": ["name", "email", "password", "role"],
+        "required": [
+          "name",
+          "email",
+          "password",
+          "role"
+        ],
         "properties": {
-          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "minLength": 6 },
-          "role": { "type": "string", "enum": ["WAITER", "BARTENDER"] }
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "WAITER",
+              "BARTENDER"
+            ]
+          }
         }
       },
       "RegisterResponse": {
         "type": "object",
-        "required": ["message", "user"],
+        "required": [
+          "message",
+          "user"
+        ],
         "properties": {
-          "message": { "type": "string" },
+          "message": {
+            "type": "string"
+          },
           "user": {
             "type": "object",
-            "required": ["id", "name", "email", "role"],
+            "required": [
+              "id",
+              "name",
+              "email",
+              "role"
+            ],
             "properties": {
-              "id": { "type": "integer" },
-              "name": { "type": "string" },
-              "email": { "type": "string", "format": "email" },
-              "role": { "type": "string", "enum": ["WAITER", "BARTENDER"] }
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "WAITER",
+                  "BARTENDER"
+                ]
+              }
             }
           }
         }
       },
       "LoginRequest": {
         "type": "object",
-        "required": ["email", "password"],
+        "required": [
+          "email",
+          "password"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email" },
-          "password": { "type": "string", "minLength": 6 }
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 6
+          }
         }
       },
       "LoginResponse": {
         "type": "object",
-        "required": ["message", "token"],
+        "required": [
+          "message",
+          "token"
+        ],
         "properties": {
-          "message": { "type": "string" },
-          "token": { "type": "string", "minLength": 1 }
+          "message": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string",
+            "minLength": 1
+          }
         }
       },
       "ForgotPasswordRequest": {
         "type": "object",
-        "required": ["email"],
+        "required": [
+          "email"
+        ],
         "properties": {
-          "email": { "type": "string", "format": "email" }
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
         }
       },
       "ForgotPasswordResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
-          "message": { "type": "string" },
-          "resetToken": { "type": "string" }
+          "message": {
+            "type": "string"
+          },
+          "resetToken": {
+            "type": "string"
+          }
         }
       },
       "ResetPasswordRequest": {
         "type": "object",
-        "required": ["token", "newPassword"],
+        "required": [
+          "token",
+          "newPassword"
+        ],
         "properties": {
-          "token": { "type": "string", "minLength": 1 },
-          "newPassword": { "type": "string", "minLength": 6 }
+          "token": {
+            "type": "string",
+            "minLength": 1
+          },
+          "newPassword": {
+            "type": "string",
+            "minLength": 6
+          }
         }
       },
       "MessageResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
-          "message": { "type": "string" }
+          "message": {
+            "type": "string"
+          }
         }
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
-          "message": { "type": "string" }
+          "message": {
+            "type": "string"
+          }
         }
       },
       "ValidationErrorResponse": {
         "type": "object",
-        "required": ["message", "errors"],
+        "required": [
+          "message",
+          "errors"
+        ],
         "properties": {
-          "message": { "type": "string", "enum": ["Validation error"] },
+          "message": {
+            "type": "string",
+            "enum": [
+              "Validation error"
+            ]
+          },
           "errors": {
             "type": "array",
             "items": {
@@ -306,5 +423,25 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Staff"
+    },
+    {
+      "name": "Menu"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Tables"
+    },
+    {
+      "name": "Reports"
+    }
+  ]
 }

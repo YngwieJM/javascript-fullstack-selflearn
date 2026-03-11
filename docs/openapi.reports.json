@@ -13,6 +13,21 @@
   "tags": [
     {
       "name": "Reports"
+    },
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Staff"
+    },
+    {
+      "name": "Menu"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Tables"
     }
   ],
   "paths": {

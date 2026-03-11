@@ -52,7 +52,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       },
       "get": {
         "summary": "Get all orders (MANAGER only)",
@@ -78,7 +81,10 @@
           "403": {
             "$ref": "#/components/responses/ForbiddenError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}": {
@@ -123,7 +129,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       },
       "delete": {
         "summary": "Delete order (MANAGER only)",
@@ -155,7 +164,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}/items": {
@@ -210,7 +222,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     },
     "/orders/{id}/close": {
@@ -255,7 +270,10 @@
           "404": {
             "$ref": "#/components/responses/NotFoundError"
           }
-        }
+        },
+        "tags": [
+          "Orders"
+        ]
       }
     }
   },
@@ -329,7 +347,9 @@
     "schemas": {
       "OrderCore": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -350,7 +370,9 @@
       },
       "OrderListItem": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -371,7 +393,9 @@
       },
       "OrderItem": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -393,7 +417,9 @@
       },
       "OrderDetailItem": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -415,7 +441,9 @@
       },
       "OrderDetail": {
         "type": "object",
-        "required": ["id"],
+        "required": [
+          "id"
+        ],
         "properties": {
           "id": {
             "type": "integer"
@@ -448,7 +476,9 @@
       },
       "CreateOrderRequest": {
         "type": "object",
-        "required": ["table_id"],
+        "required": [
+          "table_id"
+        ],
         "properties": {
           "table_id": {
             "type": "integer",
@@ -462,7 +492,10 @@
       },
       "AddOrderItemRequest": {
         "type": "object",
-        "required": ["menu_item_id", "quantity"],
+        "required": [
+          "menu_item_id",
+          "quantity"
+        ],
         "properties": {
           "menu_item_id": {
             "type": "integer",
@@ -476,7 +509,10 @@
       },
       "CreateOrderResponse": {
         "type": "object",
-        "required": ["message", "order"],
+        "required": [
+          "message",
+          "order"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -488,7 +524,10 @@
       },
       "AddOrderItemResponse": {
         "type": "object",
-        "required": ["message", "orderItem"],
+        "required": [
+          "message",
+          "orderItem"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -500,7 +539,10 @@
       },
       "GetAllOrdersResponse": {
         "type": "object",
-        "required": ["message", "orders"],
+        "required": [
+          "message",
+          "orders"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -515,7 +557,10 @@
       },
       "GetOrderByIdResponse": {
         "type": "object",
-        "required": ["message", "order"],
+        "required": [
+          "message",
+          "order"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -527,7 +572,10 @@
       },
       "CloseOrderResponse": {
         "type": "object",
-        "required": ["message", "order"],
+        "required": [
+          "message",
+          "order"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -539,7 +587,10 @@
       },
       "DeleteOrderResponse": {
         "type": "object",
-        "required": ["message", "order"],
+        "required": [
+          "message",
+          "order"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -551,7 +602,9 @@
       },
       "ErrorResponse": {
         "type": "object",
-        "required": ["message"],
+        "required": [
+          "message"
+        ],
         "properties": {
           "message": {
             "type": "string"
@@ -560,11 +613,16 @@
       },
       "ValidationErrorResponse": {
         "type": "object",
-        "required": ["message", "errors"],
+        "required": [
+          "message",
+          "errors"
+        ],
         "properties": {
           "message": {
             "type": "string",
-            "enum": ["Validation error"]
+            "enum": [
+              "Validation error"
+            ]
           },
           "errors": {
             "type": "array",
@@ -576,5 +634,25 @@
         }
       }
     }
-  }
+  },
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Staff"
+    },
+    {
+      "name": "Menu"
+    },
+    {
+      "name": "Orders"
+    },
+    {
+      "name": "Tables"
+    },
+    {
+      "name": "Reports"
+    }
+  ]
 }
