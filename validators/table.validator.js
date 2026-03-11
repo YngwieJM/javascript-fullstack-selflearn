@@ -1,4 +1,5 @@
 const { z } = require("zod");
+const { idParamSchema, paginationSchema } = require("./common.validator");
 
 const idParam = z.object({
     params: z.object({
@@ -31,6 +32,8 @@ const deleteTableSchema = idParam;
 module.exports = {
     createTableSchema,
     updateTableSchema,
-    getTableByIdSchema,
-    deleteTableSchema
+    getTableByIdSchema: idParamSchema,
+    deleteTableSchema: idParamSchema,
+    getTablesSchema: paginationSchema,
+
 };

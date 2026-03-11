@@ -1,10 +1,5 @@
 const { z } = require("zod");
-
-const idParamSchema = z.object({
-    params: z.object({
-        id:z.string().regex(/^\d+$/)
-    })
-});
+const { idParamSchema, paginationSchema } = require("./common.validator");
 
 const createStaffSchema = z.object({
     body: z.object({
@@ -41,6 +36,7 @@ module.exports = {
     createStaffSchema,
     updateStaffSchema,
     updatePasswordSchema,
-    getStaffByIdSchema,
-    deleteStaffSchema
+    getStaffByIdSchema: idParamSchema,
+    deleteStaffSchema: idParamSchema,
+    getStaffSchema: paginationSchema
 };

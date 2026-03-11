@@ -1,10 +1,18 @@
 const { z } = require("zod");
+const { idParamSchema } = require("./common.validator");
 
 const orderIdParam = z.object({
   params: z.object({
     id: z.string().regex(/^\d+$/, "Order id must be a number")
   })
 });
+
+const orderItemParam = z.object({
+  params: z.object({
+    id: z.string().regex(/^\d+$/, "Order item id must be a number"),
+    itemId: z.string().regex(/^\d+$/, "Menu item id must be a number")
+  })
+})
 
 
 const createOrderSchema = z.object({
@@ -22,7 +30,15 @@ const addItemSchema = z.object({
   })
 });
 
-const deleteItemSchema = orderIdParam;
+const getOrderSchema = z.object({
+  query: z.object({
+    status: z.enum(["OPEN", "CLOSED"]).optional(),
+    page: z.coerce.number().int().positive().optional(),
+    limit: z.coerce.number().int().positive().optional()
+  })
+});
+
+const deleteItemSchema = orderItemParam;
 
 const closeOrderSchema = orderIdParam;
 
@@ -31,5 +47,7 @@ module.exports = {
   getOrderByIdSchema: orderIdParam,
   addItemSchema,
   deleteItemSchema,
-  closeOrderSchema
+  closeOrderSchema,
+  deleteOrderSchema: idParamSchema,
+  getOrderSchema
 };
