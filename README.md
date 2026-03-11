@@ -107,6 +107,12 @@ OpenAPI files are available in `docs/` (e.g. `docs/openapi.json`).
 - Scenario guide: `docs/one-day-operation-scenario.md`
 - Release/setup runbook: `docs/release-runbook.md`
 - OpenAPI: `docs/openapi.json` (plus split module files in `docs/`)
+- Reports OpenAPI: `docs/openapi.reports.json`
+
+When server is running:
+
+- Swagger UI: `http://localhost:3000/api-docs`
+- Raw OpenAPI JSON: `http://localhost:3000/openapi.json`
 
 ## Postman
 

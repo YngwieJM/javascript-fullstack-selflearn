@@ -50,6 +50,11 @@ Seeded users (default password: `123456`):
 npm start
 ```
 
+API docs endpoints:
+
+- Swagger UI: `http://localhost:3000/api-docs`
+- OpenAPI JSON: `http://localhost:3000/openapi.json`
+
 ## Optional Data Utilities
 
 - Generate randomized one-day data (`09:00-23:00`):
