@@ -1,6 +1,6 @@
 # One-Day Operation Scenario
 
-This scenario seeds one day of restaurant operations (`06:00` to `12:00`) and prints sales report output for that date.
+This scenario seeds one day of restaurant operations (`09:00` to `23:00`) and prints sales report output for that date.
 Generation is randomized on every run using the scenario data bank in `scripts/scenario.data-bank.js`.
 
 ## Run
@@ -27,7 +27,7 @@ set OPS_SEED=my-seed-value&& npm run scenario:one-day
 
 ## Cleanup Scenario Orders
 
-Remove `CLOSED` orders created in the operation window (`06:00-12:00`) for a specific date.
+Remove `CLOSED` orders created in the operation window (`09:00-23:00`) for a specific date.
 
 ```bash
 npm run scenario:cleanup-one-day
@@ -69,7 +69,7 @@ set OPS_DATE=2026-03-12&& npm run scenario:cleanup-one-day:full
   - `Terrace`
   - `Table`
 - Inserts random menu items (IDR pricing) with scenario marker in the name: `(SCN-<run-tag>)`.
-- Creates random closed orders and random order items in the operation window (`06:00-12:00`).
+- Creates random closed orders and random order items in the operation window (`09:00-23:00`).
 - Prints same-day sales report:
   - Daily sales
   - Hourly sales

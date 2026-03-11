@@ -4,9 +4,12 @@ const pool = require("../config/db");
 const dataBank = require("./scenario.data-bank");
 
 const DEFAULT_PASSWORD = "123456";
-const SHIFT_START_HOUR = 6;
-const SHIFT_END_HOUR = 12;
+const SHIFT_START_HOUR = 9;
+const SHIFT_END_HOUR = 23;
 const PRICE_STEP = 1000;
+const SHIFT_WINDOW_LABEL = `${String(SHIFT_START_HOUR).padStart(2, "0")}:00-${String(
+  SHIFT_END_HOUR
+).padStart(2, "0")}:00`;
 
 const CORE_STAFF = [
   { id: 2, name: "Anna", email: "anna@test.com", role: "BARTENDER" },
@@ -467,7 +470,7 @@ async function main() {
 
     const report = await buildSalesReport(shiftDate);
 
-    console.log(`\nOne-day random operation scenario created for ${shiftDate} (06:00-12:00).`);
+    console.log(`\nOne-day random operation scenario created for ${shiftDate} (${SHIFT_WINDOW_LABEL}).`);
     console.log(`Run tag: ${runTag}`);
     console.log(`Seed: ${seedInput}`);
     console.log(`Placeholder staff removed: ${deletedPlaceholders}`);

@@ -1,8 +1,8 @@
 require("dotenv").config({ path: "./config/.env" });
 const pool = require("../config/db");
 
-const SHIFT_START = "06:00:00";
-const SHIFT_END = "12:00:00";
+const SHIFT_START = "09:00:00";
+const SHIFT_END = "23:00:00";
 const CLEAN_MASTER_DATA =
   String(process.env.CLEAN_MASTER_DATA || "").toLowerCase() === "true" ||
   process.argv.includes("--full");

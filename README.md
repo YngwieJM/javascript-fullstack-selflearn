@@ -113,7 +113,7 @@ Import:
 
 ### One-day operation scenario
 
-Creates randomized operation data from `06:00` to `12:00`, including random staff/menu/tables/orders and report output.
+Creates randomized operation data from `09:00` to `23:00`, including random staff/menu/tables/orders and report output.
 The data source (data bank) is in `scripts/scenario.data-bank.js`.
 
 ```bash
@@ -134,7 +134,7 @@ set OPS_SEED=my-seed-value&& npm run scenario:one-day
 
 ### Cleanup scenario data
 
-Cleanup orders and order items in the one-day operation window (`06:00-12:00`):
+Cleanup orders and order items in the one-day operation window (`09:00-23:00`):
 
 ```bash
 npm run scenario:cleanup-one-day
