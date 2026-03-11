@@ -1,3 +1,4 @@
+const pool = require("../config/db");
 const staffService = require("../services/staff.service");
 const asyncHandler = require("../utils/asyncHandler");
 
@@ -32,29 +33,16 @@ exports.updateStaff = asyncHandler(async(req, res) => {
 });
 
 exports.updatePassword = asyncHandler(async(req, res) => {
-    const id = Number(req.params.id);
+    const id = req.params.id;
     const {currentPassword, newPassword} = req.body;
 
-    const isManager = req.user.role === "MANAGER";
-    const isSelf = req.user.id === id;
-
-    if(!isManager && !isSelf){
-        return res.status(403).json({message:"Access forbidden"});
-    }
-
-    const skipCurrentCheck = isManager && !isSelf;
-
-    if(!skipCurrentCheck && !currentPassword){
-        return res.status(400).json({message: "Current password is required"})
-    }
-
-    await staffService.updatePassword(id, currentPassword, newPassword, {skipCurrentCheck});
+    const staff = await staffService.updatePassword(id, currentPassword, newPassword);
     res.status(200).json({message: "Password updated successfully"}); 
-});
+})
 
 
 exports.deleteStaff = asyncHandler(async(req, res) => {
     const id = req.params.id;
      await staffService.deleteStaff(id);
     res.status(204).send();
-});
+})

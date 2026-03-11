@@ -40,9 +40,9 @@ exports.createStaff = async (name, email, password, role) => {
 exports.updateStaff = async (id, name, email, role) => {
     const result = await pool.query(`
         UPDATE staff SET
-        name = COALESCE($1, name),
-        email = COALESCE ($2, email),
-        role = COALESCE ($3, role)
+        name = COALESCE($1),
+        email = COALESCE ($2),
+        role = COALESCE ($3)
         WHERE id = $4 RETURNING id, name, email, role`, [name, email, role, id]);
 
         if(result.rows.length === 0){
@@ -52,8 +52,8 @@ exports.updateStaff = async (id, name, email, role) => {
         return result.rows[0];
 };
 
-exports.updatePassword = async (id, currentPassword, newPassword, options = {}) => {
-    const { skipCurrentCheck = false } = options;
+exports.updatePassword = async (id, currectPassword, newPassword) => {
+    
 
     const staffResult = await pool.query(
         `SELECT password FROM staff WHERE id = $1`,[id]
@@ -65,14 +65,11 @@ exports.updatePassword = async (id, currentPassword, newPassword, options = {}) 
 
     const storedPassword = staffResult.rows[0].password;
 
-    if(!skipCurrentCheck){
-         const passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
+    const passwordMacth = await bcrypt.compare(currectPassword, storedPassword);
 
-    if(!passwordMatch){
+    if(!passwordMacth){
         throw new Error("INVALID_PASSWORD");
-        }   
     }
-
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 

@@ -1,46 +1,36 @@
 const { z } = require("zod");
 
-const idParamSchema = z.object({
-    params: z.object({
-        id:z.string().regex(/^\d+$/)
-    })
-});
-
 const createStaffSchema = z.object({
     body: z.object({
-        name: z.string().trim().min(2).max(100),
-        email: z.string().trim().email(),
-        password: z.string().trim().min(6),
+        name: z.string().min(2).max(100),
+        email: z.string().email(),
+        password: z.string().min(6),
         role: z.enum(["WAITER", "BARTENDER", "MANAGER"])
     })
 });
 
 const updateStaffSchema = z.object({
-    params: idParamSchema.shape.params,
+    params: z.object({
+        id: z.string().regex(/^\d+$/)
+    }),
     body: z.object({
-        name: z.string().trim().min(2).max(100).optional(),
-        email: z.string().trim().email().optional(),
+        name: z.string().min(2).max(100).optional(),
         role: z.enum(["WAITER", "BARTENDER", "MANAGER"]).optional()
-    }).refine((data) => Object.keys(data).length > 0, {
-        message: "At least one field must be provided"
     })
 });
 
 const updatePasswordSchema = z.object({
-    params: idParamSchema.shape.params,
+    params: z.object({
+        id: z.string().regex(/^\d+$/)
+    }),
     body: z.object({
-        currentPassword: z.string().trim().optional(),
-        newPassword: z.string().trim().min(6)
+        currentPassword: z.string(),
+        newPassword: z.string().min(6)
     })
 });
-
-const getStaffByIdSchema = idParamSchema;
-const deleteStaffSchema = idParamSchema;
 
 module.exports = {
     createStaffSchema,
     updateStaffSchema,
-    updatePasswordSchema,
-    getStaffByIdSchema,
-    deleteStaffSchema
+    updatePasswordSchema
 };

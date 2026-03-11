@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const { jwtSecret } = require("../config/env")
+const JWT_SECRET = "supersecretkey"; //later move to .env
 
 exports.authenticate = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -9,14 +9,10 @@ exports.authenticate = (req, res, next) => {
         return res.status(401).json({message: "No token provided"});
     }
 
-    const [scheme, token, ...rest] = authHeader.trim().split(/\s+/);
-
-    if(scheme !== "Bearer" || !token || rest.length > 0){
-        return res.status(401).json({message:"Malformed authorization header"})
-    }
+    const token = authHeader.split(" ")[1];
 
     try{
-        const decoded = jwt.verify(token, jwtSecret);
+        const decoded = jwt.verify(token, JWT_SECRET);
 
         req.user = decoded; //attach user info to request
         next();
