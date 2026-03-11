@@ -102,6 +102,12 @@ npm test
 
 OpenAPI files are available in `docs/` (e.g. `docs/openapi.json`).
 
+## Documentation
+
+- Scenario guide: `docs/one-day-operation-scenario.md`
+- Release/setup runbook: `docs/release-runbook.md`
+- OpenAPI: `docs/openapi.json` (plus split module files in `docs/`)
+
 ## Postman
 
 Import:

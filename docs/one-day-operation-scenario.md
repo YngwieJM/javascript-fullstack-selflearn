@@ -61,13 +61,13 @@ set OPS_DATE=2026-03-12&& npm run scenario:cleanup-one-day:full
 
 ## What It Does
 
-- Normalizes core staff IDs `2-6` to:
-  - `2` Anna (`BARTENDER`)
-  - `3` Michael (`WAITER`)
-  - `4` Admin (`MANAGER`)
-  - `5` Jordan (`WAITER`)
-  - `6` Lisa (`WAITER`)
-- Resets core staff password to `123456`.
+- Ensures core staff accounts exist (matched by email, not fixed ID):
+  - `admin@test.com` (`MANAGER`)
+  - `anna@test.com` (`BARTENDER`)
+  - `michael@test.com` (`WAITER`)
+  - `jordan@test.com` (`WAITER`)
+  - `lisa@test.com` (`WAITER`)
+- Resets core staff password to `123456` each run.
 - Deletes placeholder staff names `Mgr` and `Waiter`.
 - Adds random staff (WAITER/BARTENDER) with scenario email pattern: `scn.<run-tag>...@test.local`.
 - Randomizes table naming/capacity using zones:
@@ -76,6 +76,7 @@ set OPS_DATE=2026-03-12&& npm run scenario:cleanup-one-day:full
   - `Table`
 - Inserts random menu items (IDR pricing) with scenario marker in the name: `(SCN-<run-tag>)`.
 - Creates random closed orders and random order items in the operation window (`09:00-23:00`).
+- Prints run metadata (`Run tag`, `Seed`) for traceability.
 - Prints same-day sales report:
   - Daily sales
   - Hourly sales
