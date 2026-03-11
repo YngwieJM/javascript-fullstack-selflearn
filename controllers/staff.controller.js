@@ -10,7 +10,8 @@ exports.createStaff = asyncHandler(async(req, res) => {
 });
 
 exports.getAllStaff = asyncHandler(async(req, res) => {
-    const staff = await staffService.getAllStaff();
+    const { page, limit } = req.validated?.query ?? req.query;
+    const staff = await staffService.getAllStaff(page, limit);
 
     res.json(staff)
 });

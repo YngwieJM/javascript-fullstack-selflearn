@@ -18,9 +18,12 @@ exports.addItemOrder = asyncHandler(async(req, res) => {
 });
 
 exports.getAllOrders = asyncHandler(async(req, res) => {
-    const orders = await orderService.getAllOrders();
+
+    const { page, limit } = req.validated?.query ?? req.query;
+
+    const orders = await orderService.getAllOrders(page, limit);
     res.status(200).json({message: "All Orders", orders});
-})
+});
 
 exports.getOrderById = asyncHandler(async(req, res) => {
     const orderId = req.params.id;

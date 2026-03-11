@@ -5,6 +5,7 @@ const menuRoute = require("./routes/menu.routes");
 const staffRoute = require("./routes/staff.routes");
 const tablesRoute = require("./routes/tables.routes");
 const authRoute = require("./routes/auth.routes");
+const reportRoutes = require("./routes/reports.routes");
 const {errorHandler} = require("./middleware/error.middleware");
 
 const app = express();
@@ -15,6 +16,8 @@ app.use("/menu", menuRoute);
 app.use("/staff", staffRoute);
 app.use("/tables", tablesRoute);
 app.use("/auth", authRoute);
+app.use("/reports", reportRoutes);
+
 app.use(errorHandler);
 
  const PORT = Number(process.env.PORT) || 3000;

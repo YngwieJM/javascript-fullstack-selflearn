@@ -1,12 +1,24 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
 
-exports.getAllStaff = async () => {
+exports.getAllStaff = async (page = 1, limit = 10) => {
+    const offset = (page - 1) * limit;
+
     const result = await pool.query(`
         SELECT id, name, email, role, created_at
-        FROM staff ORDER BY id`);
+        FROM staff ORDER BY id
+        LIMIT $1 OFFSET $2`, [limit, offset]);
 
-        return result.rows;
+    const countQuery = await pool.query("SELECT COUNT(*) FROM staff");
+    const total = parseInt(countQuery.rows[0].count, 10);
+
+    return {
+        page,
+        limit,
+        total,
+        total_pages: Math.ceil(total / limit),
+        data: result.rows
+    };
     
 };
 
