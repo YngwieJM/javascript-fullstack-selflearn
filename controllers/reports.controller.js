@@ -20,4 +20,25 @@ exports.getRevenue = asyncHandler(async (req, res) => {
     const data = await reportsService.getRevenue();
 
     res.json(data);
-})
+});
+
+exports.getSalesByStaff = asyncHandler(async(req, res) => {
+
+    const data = await reportsService.getSalesByStaff();
+
+    res.json(data);
+});
+
+exports.getSalesByCategory = asyncHandler(async(req, res) => {
+
+    const data = await reportsService.getSalesByCategory();
+
+    res.json(data);
+});
+
+exports.getHourlySales = asyncHandler(async(req, res) => {
+
+    const data = await reportsService.getHourlySales();
+
+    res.json(data);
+});

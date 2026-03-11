@@ -7,7 +7,10 @@ const { errorHandler } = require("../middleware/error.middleware");
 jest.mock("../services/reports.service", () => ({
   getDailySales: jest.fn(),
   getTopMenuItems: jest.fn(),
-  getRevenue: jest.fn()
+  getRevenue: jest.fn(),
+  getSalesByStaff: jest.fn(),
+  getSalesByCategory: jest.fn(),
+  getHourlySales: jest.fn()
 }));
 
 const reportsService = require("../services/reports.service");
@@ -42,6 +45,9 @@ describe("Reports routes smoke", () => {
     reportsService.getDailySales.mockResolvedValue([{ date: "2026-03-11", total_orders: "3", total_revenue: "150" }]);
     reportsService.getTopMenuItems.mockResolvedValue([{ name: "Burger", total_sold: "8" }]);
     reportsService.getRevenue.mockResolvedValue({ total_revenue: "150" });
+    reportsService.getSalesByStaff.mockResolvedValue([{ id: 1, name: "John", total_orders: "4", total_revenue: "280" }]);
+    reportsService.getSalesByCategory.mockResolvedValue([{ category: "FOOD", total_items_sold: "12", total_revenue: "560" }]);
+    reportsService.getHourlySales.mockResolvedValue([{ hour: "19:00", total_orders: "2", total_revenue: "140" }]);
   });
 
   afterEach(() => {
@@ -78,10 +84,43 @@ describe("Reports routes smoke", () => {
     expect(reportsService.getRevenue).toHaveBeenCalledTimes(1);
   });
 
+  test("GET /reports/sales-by-staff allows MANAGER", async () => {
+    const res = await request(app)
+      .get("/reports/sales-by-staff")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ id: 1, name: "John", total_orders: "4", total_revenue: "280" }]);
+    expect(reportsService.getSalesByStaff).toHaveBeenCalledTimes(1);
+  });
+
+  test("GET /reports/sales-by-category allows MANAGER", async () => {
+    const res = await request(app)
+      .get("/reports/sales-by-category")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ category: "FOOD", total_items_sold: "12", total_revenue: "560" }]);
+    expect(reportsService.getSalesByCategory).toHaveBeenCalledTimes(1);
+  });
+
+  test("GET /reports/hourly-sales allows MANAGER", async () => {
+    const res = await request(app)
+      .get("/reports/hourly-sales")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([{ hour: "19:00", total_orders: "2", total_revenue: "140" }]);
+    expect(reportsService.getHourlySales).toHaveBeenCalledTimes(1);
+  });
+
   test.each([
     ["/reports/daily-sales"],
     ["/reports/top-menu"],
-    ["/reports/revenue"]
+    ["/reports/revenue"],
+    ["/reports/sales-by-staff"],
+    ["/reports/sales-by-category"],
+    ["/reports/hourly-sales"]
   ])("GET %s returns 401 when token is missing", async (path) => {
     const res = await request(app).get(path);
 
@@ -92,7 +131,10 @@ describe("Reports routes smoke", () => {
   test.each([
     ["/reports/daily-sales"],
     ["/reports/top-menu"],
-    ["/reports/revenue"]
+    ["/reports/revenue"],
+    ["/reports/sales-by-staff"],
+    ["/reports/sales-by-category"],
+    ["/reports/hourly-sales"]
   ])("GET %s blocks WAITER", async (path) => {
     const res = await request(app)
       .get(path)
@@ -123,6 +165,19 @@ describe("Reports routes smoke", () => {
 
     const res = await request(app)
       .get("/reports/top-menu")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(500);
+    expect(res.body.message).toBe("Internal Server Error");
+    consoleSpy.mockRestore();
+  });
+
+  test("GET /reports/hourly-sales returns 500 when service throws", async () => {
+    const consoleSpy = jest.spyOn(console, "error").mockImplementation(() => {});
+    reportsService.getHourlySales.mockRejectedValueOnce(new Error("DB_DOWN"));
+
+    const res = await request(app)
+      .get("/reports/hourly-sales")
       .set("Authorization", `Bearer ${managerToken}`);
 
     expect(res.status).toBe(500);
