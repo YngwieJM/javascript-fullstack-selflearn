@@ -232,4 +232,53 @@ describe("Orders service unit QA", () => {
       )
     ).toBe(false);
   });
+
+  test("getAllOrders applies LIMIT/OFFSET correctly for requested page", async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 11, status: "OPEN", table_number: "T1", staff_name: "John" }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ count: "42" }]
+      });
+
+    const result = await ordersService.getAllOrders(2, 10);
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 10]
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(2, "SELECT COUNT(*) FROM orders");
+    expect(result).toEqual(
+      expect.objectContaining({
+        page: 2,
+        limit: 10,
+        total: 42,
+        total_pages: 5
+      })
+    );
+    expect(result.data).toHaveLength(1);
+  });
+
+  test("getAllOrders uses default pagination when page and limit are omitted", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: "0" }] });
+
+    const result = await ordersService.getAllOrders();
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 0]
+    );
+    expect(result).toEqual({
+      page: 1,
+      limit: 10,
+      total: 0,
+      total_pages: 0,
+      data: []
+    });
+  });
 });

@@ -249,6 +249,34 @@ describe("Orders flow QA", () => {
     });
   });
 
+  test("GET /orders passes pagination query to service as numbers", async () => {
+    ordersService.getAllOrders.mockResolvedValueOnce([{ id: 3, status: "OPEN" }]);
+
+    const res = await request(app)
+      .get("/orders?page=2&limit=5")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(ordersService.getAllOrders).toHaveBeenCalledWith(2, 5);
+  });
+
+  test.each([
+    ["page is zero", "/orders?page=0&limit=5"],
+    ["negative page", "/orders?page=-1&limit=5"],
+    ["non-integer page", "/orders?page=1.5&limit=5"],
+    ["limit is zero", "/orders?page=1&limit=0"],
+    ["negative limit", "/orders?page=1&limit=-5"],
+    ["non-integer limit", "/orders?page=1&limit=2.5"]
+  ])("GET /orders rejects invalid pagination when %s", async (_name, path) => {
+    const res = await request(app)
+      .get(path)
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(ordersService.getAllOrders).not.toHaveBeenCalled();
+  });
+
   test.each([
     [{ table_id: -1, staff_id: 1 }],
     [{ table_id: 1, staff_id: 0 }],

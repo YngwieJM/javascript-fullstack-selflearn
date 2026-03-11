@@ -7,8 +7,8 @@ const idParamSchema = z.object({
 
 const paginationSchema = z.object({
     query: z.object({
-        page: z.coerce.number().int().positive().optional(),
-        limit: z.coerce.number().int().positive().optional()
+        page: z.coerce.number().int().positive().optional().default(1),
+        limit: z.coerce.number().int().positive().max(100).default(10)
     })
 });
 
