@@ -1,4 +1,3 @@
-const { exactOptional } = require("zod");
 const pool = require("../config/db");
 
 exports.getDailySales = async () => { 
@@ -26,6 +25,8 @@ exports.getTopMenuItems = async () => {
          WHERE o.status = 'CLOSED'
          GROUP BY m.name ORDER BY total_sold DESC LIMIT 10`
     );
+
+    return result.rows;
 }
 
 exports.getRevenue = async () => {
