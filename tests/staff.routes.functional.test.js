@@ -43,7 +43,13 @@ describe("Staff routes functional QA", () => {
   });
 
   beforeEach(() => {
-    staffService.getAllStaff.mockResolvedValue([{ id: 1, name: "Alice", role: "WAITER" }]);
+    staffService.getAllStaff.mockResolvedValue({
+      page: 1,
+      limit: 10,
+      total: 1,
+      total_pages: 1,
+      data: [{ id: 1, name: "Alice", role: "WAITER" }]
+    });
     staffService.getStaffById.mockResolvedValue({ id: 2, name: "Bob", role: "BARTENDER" });
     staffService.createStaff.mockResolvedValue({
       id: 3,
@@ -71,9 +77,40 @@ describe("Staff routes functional QA", () => {
       .set("Authorization", `Bearer ${managerToken}`);
 
     expect(res.status).toBe(200);
-    expect(Array.isArray(res.body)).toBe(true);
-    expect(res.body[0]).toEqual(expect.objectContaining({ id: 1, role: "WAITER" }));
+    expect(res.body).toEqual(
+      expect.objectContaining({
+        page: 1,
+        limit: 10,
+        total: 1,
+        total_pages: 1
+      })
+    );
+    expect(res.body.data[0]).toEqual(expect.objectContaining({ id: 1, role: "WAITER" }));
     expect(staffService.getAllStaff).toHaveBeenCalledTimes(1);
+  });
+
+  test("GET /staff passes pagination query to service as numbers", async () => {
+    const res = await request(app)
+      .get("/staff?page=3&limit=20")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(staffService.getAllStaff).toHaveBeenCalledWith(3, 20);
+  });
+
+  test.each([
+    ["page is zero", "/staff?page=0&limit=5"],
+    ["page is not integer", "/staff?page=1.5&limit=5"],
+    ["limit is zero", "/staff?page=1&limit=0"],
+    ["limit above max", "/staff?page=1&limit=101"]
+  ])("GET /staff rejects invalid pagination when %s", async (_name, path) => {
+    const res = await request(app)
+      .get(path)
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(staffService.getAllStaff).not.toHaveBeenCalled();
   });
 
   test.each([

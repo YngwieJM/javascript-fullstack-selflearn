@@ -1,5 +1,5 @@
 const { z } = require("zod");
-const { idParamSchema } = require("./common.validator");
+const { idParamSchema, paginationSchema } = require("./common.validator");
 
 const orderIdParam = z.object({
   params: z.object({
@@ -31,10 +31,8 @@ const addItemSchema = z.object({
 });
 
 const getOrderSchema = z.object({
-  query: z.object({
-    status: z.enum(["OPEN", "CLOSED"]).optional(),
-    page: z.coerce.number().int().positive().optional(),
-    limit: z.coerce.number().int().positive().optional()
+  query: paginationSchema.shape.query.extend({
+    status: z.enum(["OPEN", "CLOSED"]).optional()
   })
 });
 

@@ -37,6 +37,55 @@ describe("Staff service unit QA", () => {
     expect(result).toEqual(created);
   });
 
+  test("getAllStaff applies LIMIT/OFFSET correctly for requested page", async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 4, name: "Dana", email: "dana@example.com", role: "WAITER", created_at: "2026-01-01" }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ count: "33" }]
+      });
+
+    const result = await staffService.getAllStaff(3, 10);
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 20]
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(2, "SELECT COUNT(*) FROM staff");
+    expect(result).toEqual(
+      expect.objectContaining({
+        page: 3,
+        limit: 10,
+        total: 33,
+        total_pages: 4
+      })
+    );
+    expect(result.data).toHaveLength(1);
+  });
+
+  test("getAllStaff uses defaults when page and limit are omitted", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: "0" }] });
+
+    const result = await staffService.getAllStaff();
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 0]
+    );
+    expect(result).toEqual({
+      page: 1,
+      limit: 10,
+      total: 0,
+      total_pages: 0,
+      data: []
+    });
+  });
+
   test("updateStaff updates row and returns updated staff", async () => {
     const updatedRow = {
       id: 1,

@@ -44,7 +44,13 @@ describe("Tables routes QA", () => {
   beforeEach(() => {
     tableService.createTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
     tableService.updateTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 5 });
-    tableService.getAllTables.mockResolvedValue([]);
+    tableService.getAllTables.mockResolvedValue({
+      page: 1,
+      limit: 10,
+      total: 1,
+      total_pages: 1,
+      data: [{ id: 1, table_number: "A1", capacity: 4 }]
+    });
     tableService.getTableById.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
     tableService.deleteTable.mockResolvedValue({ id: 1, table_number: "A1", capacity: 4 });
   });
@@ -201,6 +207,30 @@ describe("Tables routes QA", () => {
     expect(managerRes.status).toBe(200);
     expect(bartenderRes.status).toBe(403);
     expect(tableService.getAllTables).toHaveBeenCalledTimes(2);
+  });
+
+  test("GET /tables passes pagination query to service as numbers", async () => {
+    const res = await request(app)
+      .get("/tables?page=2&limit=15")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(tableService.getAllTables).toHaveBeenCalledWith(2, 15);
+  });
+
+  test.each([
+    ["page is zero", "/tables?page=0&limit=5"],
+    ["page is not integer", "/tables?page=1.5&limit=5"],
+    ["limit is zero", "/tables?page=1&limit=0"],
+    ["limit above max", "/tables?page=1&limit=101"]
+  ])("GET /tables rejects invalid pagination when %s", async (_name, path) => {
+    const res = await request(app)
+      .get(path)
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(tableService.getAllTables).not.toHaveBeenCalled();
   });
 
   test("GET /tables returns 401 with invalid token", async () => {

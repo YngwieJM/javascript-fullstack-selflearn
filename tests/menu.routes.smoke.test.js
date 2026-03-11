@@ -44,7 +44,13 @@ describe("Menu routes QA", () => {
 
   beforeEach(() => {
     menuService.createMenuItem.mockResolvedValue({ id: 1, name: "Burger", category: "FOOD", price: 50 });
-    menuService.getAllMenuItems.mockResolvedValue([]);
+    menuService.getAllMenuItems.mockResolvedValue({
+      page: 1,
+      limit: 10,
+      total: 1,
+      total_pages: 1,
+      data: [{ id: 1, name: "Burger", category: "FOOD", price: 50 }]
+    });
     menuService.getMenuItemById.mockResolvedValue({ id: 1, name: "Burger", category: "FOOD", price: 50 });
     menuService.updateMenuItem.mockResolvedValue({ id: 1, name: "Burger", category: "FOOD", price: 60 });
     menuService.toggleAvailability.mockResolvedValue({ id: 1, is_available: false });
@@ -192,6 +198,30 @@ describe("Menu routes QA", () => {
     expect(bartenderRes.status).toBe(200);
     expect(managerRes.status).toBe(200);
     expect(menuService.getAllMenuItems).toHaveBeenCalledTimes(3);
+  });
+
+  test("GET /menu passes pagination query to service as numbers", async () => {
+    const res = await request(app)
+      .get("/menu?page=2&limit=5")
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(menuService.getAllMenuItems).toHaveBeenCalledWith(2, 5);
+  });
+
+  test.each([
+    ["page is zero", "/menu?page=0&limit=5"],
+    ["page is not integer", "/menu?page=1.5&limit=5"],
+    ["limit is zero", "/menu?page=1&limit=0"],
+    ["limit above max", "/menu?page=1&limit=101"]
+  ])("GET /menu rejects invalid pagination when %s", async (_name, path) => {
+    const res = await request(app)
+      .get(path)
+      .set("Authorization", `Bearer ${managerToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Validation error");
+    expect(menuService.getAllMenuItems).not.toHaveBeenCalled();
   });
 
   test("GET /menu blocks unknown role", async () => {

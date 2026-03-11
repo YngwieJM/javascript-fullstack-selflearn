@@ -39,6 +39,55 @@ describe("Menu service unit QA", () => {
 
     await expect(menuService.deleteMenuItem(999)).rejects.toThrow("MENU_ITEM_NOT_FOUND");
   });
+
+  test("getAllMenuItems applies LIMIT/OFFSET correctly for requested page", async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 11, name: "Tea", category: "DRINK", price: 20, is_available: true }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ count: "25" }]
+      });
+
+    const result = await menuService.getAllMenuItems(2, 10);
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 10]
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(2, "SELECT COUNT(*) FROM menu_items");
+    expect(result).toEqual(
+      expect.objectContaining({
+        page: 2,
+        limit: 10,
+        total: 25,
+        total_pages: 3
+      })
+    );
+    expect(result.data).toHaveLength(1);
+  });
+
+  test("getAllMenuItems uses defaults when page and limit are omitted", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: "0" }] });
+
+    const result = await menuService.getAllMenuItems();
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 0]
+    );
+    expect(result).toEqual({
+      page: 1,
+      limit: 10,
+      total: 0,
+      total_pages: 0,
+      data: []
+    });
+  });
 });
 
 test("createMenuItem accepts zero price", async () => {

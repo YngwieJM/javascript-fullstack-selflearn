@@ -15,6 +15,55 @@ describe("Tables service unit QA", () => {
     expect(pool.query).not.toHaveBeenCalled();
   });
 
+  test("getAllTables applies LIMIT/OFFSET correctly for requested page", async () => {
+    pool.query
+      .mockResolvedValueOnce({
+        rows: [{ id: 3, table_number: "B1", capacity: 4 }]
+      })
+      .mockResolvedValueOnce({
+        rows: [{ count: "24" }]
+      });
+
+    const result = await tableService.getAllTables(2, 10);
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 10]
+    );
+    expect(pool.query).toHaveBeenNthCalledWith(2, "SELECT COUNT(*) FROM restaurant_tables");
+    expect(result).toEqual(
+      expect.objectContaining({
+        page: 2,
+        limit: 10,
+        total: 24,
+        total_pages: 3
+      })
+    );
+    expect(result.data).toHaveLength(1);
+  });
+
+  test("getAllTables uses defaults when page and limit are omitted", async () => {
+    pool.query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ count: "0" }] });
+
+    const result = await tableService.getAllTables();
+
+    expect(pool.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("LIMIT $1 OFFSET $2"),
+      [10, 0]
+    );
+    expect(result).toEqual({
+      page: 1,
+      limit: 10,
+      total: 0,
+      total_pages: 0,
+      data: []
+    });
+  });
+
   test("deleteTable throws TABLE_IN_USE when table is referenced by orders", async () => {
     pool.query.mockResolvedValueOnce({ rows: [{ exists: 1 }] });
 
