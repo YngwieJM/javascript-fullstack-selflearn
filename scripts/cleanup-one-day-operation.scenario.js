@@ -87,7 +87,10 @@ async function main() {
     if (CLEAN_MASTER_DATA) {
       const deletedStaff = await client.query(
         `DELETE FROM staff s
-         WHERE LOWER(s.email) = ANY($1::text[])
+         WHERE (
+             LOWER(s.email) = ANY($1::text[])
+             OR LOWER(s.email) LIKE 'scn.%@test.local'
+           )
            AND NOT EXISTS (
              SELECT 1 FROM orders o WHERE o.staff_id = s.id
            )
@@ -98,7 +101,10 @@ async function main() {
 
       const deletedMenu = await client.query(
         `DELETE FROM menu_items m
-         WHERE m.name = ANY($1::text[])
+         WHERE (
+             m.name = ANY($1::text[])
+             OR m.name ILIKE '%(SCN-%)'
+           )
            AND NOT EXISTS (
              SELECT 1 FROM order_items oi WHERE oi.menu_item_id = m.id
            )

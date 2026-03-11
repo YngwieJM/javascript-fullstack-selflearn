@@ -1,6 +1,7 @@
 # One-Day Operation Scenario
 
 This scenario seeds one day of restaurant operations (`06:00` to `12:00`) and prints sales report output for that date.
+Generation is randomized on every run using the scenario data bank in `scripts/scenario.data-bank.js`.
 
 ## Run
 
@@ -16,6 +17,13 @@ set OPS_DATE=2026-03-12&& npm run scenario:one-day
 ```
 
 `OPS_DATE` format: `YYYY-MM-DD`
+
+Use a fixed random seed (for reproducible runs):
+
+```bash
+# Windows (cmd)
+set OPS_SEED=my-seed-value&& npm run scenario:one-day
+```
 
 ## Cleanup Scenario Orders
 
@@ -55,16 +63,13 @@ set OPS_DATE=2026-03-12&& npm run scenario:cleanup-one-day:full
   - `6` Lisa (`WAITER`)
 - Resets core staff password to `123456`.
 - Deletes placeholder staff names `Mgr` and `Waiter`.
-- Adds/updates realistic staff:
-  - Rafi Nugroho (`WAITER`)
-  - Nadia Putri (`BARTENDER`)
-  - Kevin Pratama (`WAITER`)
-- Repairs table format into:
-  - `VIP 1-3`
-  - `Terrace 1-3`
-  - `Table 1-3`
-- Adds/updates menu setup (food, drink, dessert) with prices in IDR and marks them available.
-- Creates closed orders and order items in the operation window (`06:00-12:00`).
+- Adds random staff (WAITER/BARTENDER) with scenario email pattern: `scn.<run-tag>...@test.local`.
+- Randomizes table naming/capacity using zones:
+  - `VIP`
+  - `Terrace`
+  - `Table`
+- Inserts random menu items (IDR pricing) with scenario marker in the name: `(SCN-<run-tag>)`.
+- Creates random closed orders and random order items in the operation window (`06:00-12:00`).
 - Prints same-day sales report:
   - Daily sales
   - Hourly sales

@@ -1,10 +1,12 @@
 require("dotenv").config({ path: "./config/.env" });
 const bcrypt = require("bcrypt");
 const pool = require("../config/db");
+const dataBank = require("./scenario.data-bank");
 
 const DEFAULT_PASSWORD = "123456";
-const SHIFT_START = "06:00:00";
-const SHIFT_END = "12:00:00";
+const SHIFT_START_HOUR = 6;
+const SHIFT_END_HOUR = 12;
+const PRICE_STEP = 1000;
 
 const CORE_STAFF = [
   { id: 2, name: "Anna", email: "anna@test.com", role: "BARTENDER" },
@@ -14,55 +16,200 @@ const CORE_STAFF = [
   { id: 6, name: "Lisa", email: "lisa@test.com", role: "WAITER" }
 ];
 
-const REAL_STAFF = [
-  { name: "Rafi Nugroho", email: "rafi.nugroho@test.com", role: "WAITER" },
-  { name: "Nadia Putri", email: "nadia.putri@test.com", role: "BARTENDER" },
-  { name: "Kevin Pratama", email: "kevin.pratama@test.com", role: "WAITER" }
-];
-
-const TABLE_LAYOUT = [
-  { table_number: "VIP 1", capacity: 6 },
-  { table_number: "VIP 2", capacity: 6 },
-  { table_number: "VIP 3", capacity: 8 },
-  { table_number: "Terrace 1", capacity: 4 },
-  { table_number: "Terrace 2", capacity: 4 },
-  { table_number: "Terrace 3", capacity: 4 },
-  { table_number: "Table 1", capacity: 2 },
-  { table_number: "Table 2", capacity: 4 },
-  { table_number: "Table 3", capacity: 4 }
-];
-
-const MENU_SETUP = [
-  { name: "Espresso", category: "DRINK", price: 30000 },
-  { name: "Cappuccino", category: "DRINK", price: 35000 },
-  { name: "Iced Tea", category: "DRINK", price: 18000 },
-  { name: "Mojito", category: "DRINK", price: 28000 },
-  { name: "Burger", category: "FOOD", price: 75000 },
-  { name: "Chicken Steak", category: "FOOD", price: 95000 },
-  { name: "Caesar Salad", category: "FOOD", price: 55000 },
-  { name: "Pasta Carbonara", category: "FOOD", price: 85000 },
-  { name: "Chocolate Cake", category: "DESSERT", price: 45000 },
-  { name: "Tiramisu", category: "DESSERT", price: 48000 }
-];
-
-const SHIFT_ORDERS = [
-  { time: "06:05:00", table: "Terrace 1", staff_id: 5, items: [{ menu: "Espresso", quantity: 2 }, { menu: "Caesar Salad", quantity: 1 }] },
-  { time: "06:20:00", table: "VIP 1", staff_id: 3, items: [{ menu: "Cappuccino", quantity: 2 }, { menu: "Pasta Carbonara", quantity: 1 }] },
-  { time: "06:40:00", table: "Table 1", staff_id: 6, items: [{ menu: "Iced Tea", quantity: 2 }, { menu: "Burger", quantity: 2 }] },
-  { time: "07:10:00", table: "Terrace 2", staff_id: 5, items: [{ menu: "Mojito", quantity: 2 }, { menu: "Chicken Steak", quantity: 1 }] },
-  { time: "08:00:00", table: "VIP 2", staff_id: 3, items: [{ menu: "Espresso", quantity: 3 }, { menu: "Burger", quantity: 3 }, { menu: "Chocolate Cake", quantity: 1 }] },
-  { time: "09:15:00", table: "Table 2", staff_id: 6, items: [{ menu: "Iced Tea", quantity: 2 }, { menu: "Caesar Salad", quantity: 2 }] },
-  { time: "10:00:00", table: "Terrace 3", staff_id: 5, items: [{ menu: "Cappuccino", quantity: 1 }, { menu: "Pasta Carbonara", quantity: 2 }] },
-  { time: "10:35:00", table: "VIP 3", staff_id: 3, items: [{ menu: "Mojito", quantity: 2 }, { menu: "Chicken Steak", quantity: 2 }, { menu: "Tiramisu", quantity: 2 }] },
-  { time: "11:05:00", table: "Table 3", staff_id: 6, items: [{ menu: "Espresso", quantity: 1 }, { menu: "Burger", quantity: 1 }] },
-  { time: "11:40:00", table: "VIP 1", staff_id: 5, items: [{ menu: "Cappuccino", quantity: 2 }, { menu: "Chocolate Cake", quantity: 2 }] }
-];
-
 function localDateString(date = new Date()) {
   const y = date.getFullYear();
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
+}
+
+function assertDateInput(dateString) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    throw new Error("OPS_DATE must use YYYY-MM-DD format");
+  }
+}
+
+function createSeededRandom(seedText) {
+  let seed = 0;
+  const text = String(seedText);
+
+  for (let i = 0; i < text.length; i += 1) {
+    seed = ((seed * 31) + text.charCodeAt(i)) >>> 0;
+  }
+
+  if (seed === 0) {
+    seed = 123456789;
+  }
+
+  return () => {
+    seed = ((1664525 * seed) + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+}
+
+function randomInt(rng, min, max) {
+  return Math.floor(rng() * (max - min + 1)) + min;
+}
+
+function pickOne(rng, items) {
+  return items[randomInt(rng, 0, items.length - 1)];
+}
+
+function shuffle(rng, items) {
+  const arr = [...items];
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = randomInt(rng, 0, i);
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function uniquePick(rng, items, count) {
+  return shuffle(rng, items).slice(0, count);
+}
+
+function slugify(value) {
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function secondsToTime(seconds) {
+  const hh = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const mm = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const ss = String(seconds % 60).padStart(2, "0");
+  return `${hh}:${mm}:${ss}`;
+}
+
+function toIdrPrice(price) {
+  const rounded = Math.round(price / PRICE_STEP) * PRICE_STEP;
+  return Math.max(rounded, PRICE_STEP);
+}
+
+function buildRunTag(shiftDate, rng) {
+  const compactDate = shiftDate.replace(/-/g, "");
+  const token = Math.floor(rng() * 1e7).toString().padStart(7, "0");
+  return `${compactDate}-${token}`;
+}
+
+function generateRandomStaff(rng, runTag) {
+  const generated = [];
+  const usedNames = new Set();
+  const usedEmails = new Set();
+  const roles = ["WAITER", "BARTENDER"];
+
+  for (const role of roles) {
+    const plan = dataBank.rolePlan[role];
+    const targetCount = randomInt(rng, plan.min, plan.max);
+
+    for (let i = 0; i < targetCount; i += 1) {
+      let fullName = "";
+      let email = "";
+      let safety = 0;
+
+      do {
+        const first = pickOne(rng, dataBank.firstNames);
+        const last = pickOne(rng, dataBank.lastNames);
+        fullName = `${first} ${last}`;
+        const suffix = Math.floor(rng() * 1000);
+        email = `scn.${runTag}.${slugify(first)}.${slugify(last)}.${suffix}@test.local`;
+        safety += 1;
+      } while (
+        safety < 40 &&
+        (usedNames.has(fullName.toLowerCase()) || usedEmails.has(email.toLowerCase()))
+      );
+
+      usedNames.add(fullName.toLowerCase());
+      usedEmails.add(email.toLowerCase());
+      generated.push({ name: fullName, email: email.toLowerCase(), role });
+    }
+  }
+
+  return generated;
+}
+
+function buildTablePlan(rng, currentTableCount) {
+  const targetCount = currentTableCount > 0 ? currentTableCount : randomInt(rng, 7, 10);
+  const plan = [];
+
+  for (const zone of dataBank.tableZones) {
+    const count = randomInt(rng, zone.min, zone.max);
+    for (let i = 1; i <= count; i += 1) {
+      plan.push({
+        table_number: `${zone.prefix} ${i}`,
+        capacity: pickOne(rng, zone.capacities)
+      });
+    }
+  }
+
+  if (plan.length < targetCount) {
+    let index = 1;
+    while (plan.length < targetCount) {
+      plan.push({
+        table_number: `Table ${index}`,
+        capacity: pickOne(rng, [2, 4, 6])
+      });
+      index += 1;
+    }
+  }
+
+  return shuffle(rng, plan).slice(0, targetCount);
+}
+
+function generateMenuSetup(rng, runTag) {
+  const minCount = 10;
+  const maxCount = Math.min(16, dataBank.menuTemplates.length);
+  const count = randomInt(rng, minCount, maxCount);
+  const selectedTemplates = uniquePick(rng, dataBank.menuTemplates, count);
+
+  return selectedTemplates.map((template) => {
+    const prefix = pickOne(rng, dataBank.menuNamePrefixes);
+    const rawPrice = randomInt(rng, template.minPrice, template.maxPrice);
+    const idrPrice = toIdrPrice(rawPrice);
+    return {
+      name: `${prefix} ${template.name} (SCN-${runTag})`,
+      category: template.category,
+      price: idrPrice
+    };
+  });
+}
+
+function generateShiftOrderPlan(rng, tableIds, staffIds, menuRows) {
+  const tx = dataBank.transactionPlan;
+  const totalOrders = randomInt(rng, tx.minOrders, tx.maxOrders);
+  const minSecond = SHIFT_START_HOUR * 3600;
+  const maxSecond = (SHIFT_END_HOUR * 3600) - 1;
+
+  const times = Array.from({ length: totalOrders }, () =>
+    randomInt(rng, minSecond, maxSecond)
+  ).sort((a, b) => a - b);
+
+  const orders = [];
+
+  for (const second of times) {
+    const tableId = pickOne(rng, tableIds);
+    const staffId = pickOne(rng, staffIds);
+    const itemsCount = Math.min(
+      randomInt(rng, tx.minItemsPerOrder, tx.maxItemsPerOrder),
+      menuRows.length
+    );
+    const selectedMenu = uniquePick(rng, menuRows, itemsCount);
+    const items = selectedMenu.map((menu) => ({
+      menu_item_id: menu.id,
+      quantity: randomInt(rng, tx.minQtyPerItem, tx.maxQtyPerItem),
+      price_at_time: Number(menu.price)
+    }));
+
+    orders.push({
+      second,
+      table_id: tableId,
+      staff_id: staffId,
+      items
+    });
+  }
+
+  return orders;
 }
 
 async function ensureCoreStaff(client, passwordHash) {
@@ -105,155 +252,93 @@ async function cleanupPlaceholderStaff(client) {
   return deleted.rows.length;
 }
 
-async function upsertRealStaff(client, passwordHash) {
-  let created = 0;
-  let updated = 0;
+async function insertRandomStaff(client, passwordHash, randomStaff) {
+  const inserted = [];
 
-  for (const member of REAL_STAFF) {
-    const existing = await client.query("SELECT id FROM staff WHERE email = $1", [
-      member.email.toLowerCase()
-    ]);
-
-    if (existing.rows.length > 0) {
-      await client.query(
-        `UPDATE staff
-         SET name = $1, role = $2, password = $3
-         WHERE id = $4`,
-        [member.name, member.role, passwordHash, existing.rows[0].id]
-      );
-      updated += 1;
-      continue;
-    }
-
-    await client.query(
+  for (const member of randomStaff) {
+    const result = await client.query(
       `INSERT INTO staff (name, email, role, password)
-       VALUES ($1, $2, $3, $4)`,
-      [member.name, member.email.toLowerCase(), member.role, passwordHash]
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, email, role`,
+      [member.name, member.email, member.role, passwordHash]
     );
-    created += 1;
+    inserted.push(result.rows[0]);
   }
 
-  return { created, updated };
+  return inserted;
 }
 
-async function normalizeTables(client) {
+async function applyRandomTables(client, tablePlan) {
   const existing = await client.query(
-    "SELECT id, capacity FROM restaurant_tables ORDER BY id"
+    "SELECT id FROM restaurant_tables ORDER BY id"
   );
 
-  for (const row of existing.rows) {
-    await client.query(
-      "UPDATE restaurant_tables SET table_number = $1 WHERE id = $2",
-      [`TMP-${row.id}`, row.id]
-    );
+  if (existing.rows.length > 0) {
+    for (const row of existing.rows) {
+      await client.query(
+        "UPDATE restaurant_tables SET table_number = $1 WHERE id = $2",
+        [`TMP-${row.id}`, row.id]
+      );
+    }
+
+    for (let i = 0; i < tablePlan.length && i < existing.rows.length; i += 1) {
+      const target = tablePlan[i];
+      await client.query(
+        `UPDATE restaurant_tables
+         SET table_number = $1, capacity = $2
+         WHERE id = $3`,
+        [target.table_number, target.capacity, existing.rows[i].id]
+      );
+    }
+
+    return;
   }
 
-  const assignCount = Math.min(existing.rows.length, TABLE_LAYOUT.length);
-
-  for (let i = 0; i < assignCount; i += 1) {
-    const table = TABLE_LAYOUT[i];
-    await client.query(
-      `UPDATE restaurant_tables
-       SET table_number = $1, capacity = $2
-       WHERE id = $3`,
-      [table.table_number, table.capacity, existing.rows[i].id]
-    );
-  }
-
-  for (let i = assignCount; i < TABLE_LAYOUT.length; i += 1) {
-    const table = TABLE_LAYOUT[i];
+  for (const table of tablePlan) {
     await client.query(
       `INSERT INTO restaurant_tables (table_number, capacity)
        VALUES ($1, $2)`,
       [table.table_number, table.capacity]
     );
   }
-
-  if (existing.rows.length > TABLE_LAYOUT.length) {
-    let nextTableNumber = 4;
-
-    for (let i = TABLE_LAYOUT.length; i < existing.rows.length; i += 1) {
-      await client.query(
-        `UPDATE restaurant_tables
-         SET table_number = $1, capacity = $2
-         WHERE id = $3`,
-        [`Table ${nextTableNumber}`, existing.rows[i].capacity || 4, existing.rows[i].id]
-      );
-      nextTableNumber += 1;
-    }
-  }
 }
 
-async function upsertMenu(client) {
-  for (const item of MENU_SETUP) {
-    const existing = await client.query(
-      "SELECT id FROM menu_items WHERE LOWER(name) = LOWER($1) LIMIT 1",
-      [item.name]
-    );
+async function insertRandomMenu(client, menuSetup) {
+  const inserted = [];
 
-    if (existing.rows.length > 0) {
-      await client.query(
-        `UPDATE menu_items
-         SET category = $1, price = $2, is_available = TRUE
-         WHERE id = $3`,
-        [item.category, item.price, existing.rows[0].id]
-      );
-      continue;
-    }
-
-    await client.query(
+  for (const item of menuSetup) {
+    const result = await client.query(
       `INSERT INTO menu_items (name, category, price, is_available)
-       VALUES ($1, $2, $3, TRUE)`,
+       VALUES ($1, $2, $3, TRUE)
+       RETURNING id, name, category, price`,
       [item.name, item.category, item.price]
     );
+    inserted.push(result.rows[0]);
   }
+
+  return inserted;
 }
 
-async function loadLookupMaps(client) {
-  const tables = await client.query("SELECT id, table_number FROM restaurant_tables");
-  const menu = await client.query("SELECT id, name, price FROM menu_items");
-
-  const tableIdByNumber = new Map(
-    tables.rows.map((row) => [row.table_number, row.id])
-  );
-  const menuByName = new Map(
-    menu.rows.map((row) => [row.name.toLowerCase(), { id: row.id, price: Number(row.price) }])
-  );
-
-  return { tableIdByNumber, menuByName };
-}
-
-async function createShiftOrders(client, shiftDate, tableIdByNumber, menuByName) {
+async function createRandomShiftOrders(client, shiftDate, orderPlan) {
   let createdOrders = 0;
   let createdItems = 0;
 
-  for (const entry of SHIFT_ORDERS) {
-    const tableId = tableIdByNumber.get(entry.table);
-    if (!tableId) {
-      throw new Error(`Table not found in scenario: ${entry.table}`);
-    }
-
-    const createdAt = `${shiftDate} ${entry.time}`;
+  for (const order of orderPlan) {
+    const createdAt = `${shiftDate} ${secondsToTime(order.second)}`;
     const orderResult = await client.query(
       `INSERT INTO orders (table_id, staff_id, status, created_at)
        VALUES ($1, $2, 'CLOSED', $3)
        RETURNING id`,
-      [tableId, entry.staff_id, createdAt]
+      [order.table_id, order.staff_id, createdAt]
     );
-
     const orderId = orderResult.rows[0].id;
     createdOrders += 1;
 
-    for (const item of entry.items) {
-      const menu = menuByName.get(item.menu.toLowerCase());
-      if (!menu) {
-        throw new Error(`Menu item not found in scenario: ${item.menu}`);
-      }
-
+    for (const item of order.items) {
       await client.query(
         `INSERT INTO order_items (order_id, menu_item_id, quantity, price_at_time)
          VALUES ($1, $2, $3, $4)`,
-        [orderId, menu.id, item.quantity, menu.price]
+        [orderId, item.menu_item_id, item.quantity, item.price_at_time]
       );
       createdItems += 1;
     }
@@ -263,8 +348,8 @@ async function createShiftOrders(client, shiftDate, tableIdByNumber, menuByName)
 }
 
 async function buildSalesReport(shiftDate) {
-  const startTimestamp = `${shiftDate} ${SHIFT_START}`;
-  const endTimestamp = `${shiftDate} ${SHIFT_END}`;
+  const startTimestamp = `${shiftDate} ${String(SHIFT_START_HOUR).padStart(2, "0")}:00:00`;
+  const endTimestamp = `${shiftDate} ${String(SHIFT_END_HOUR).padStart(2, "0")}:00:00`;
 
   const daily = await pool.query(
     `SELECT
@@ -338,32 +423,75 @@ async function buildSalesReport(shiftDate) {
 
 async function main() {
   const shiftDate = process.env.OPS_DATE || localDateString();
+  assertDateInput(shiftDate);
+
+  const seedInput = process.env.OPS_SEED || `${Date.now()}-${Math.random()}`;
+  const rng = createSeededRandom(seedInput);
+  const runTag = process.env.OPS_RUN_TAG || buildRunTag(shiftDate, rng);
   const client = await pool.connect();
 
   try {
     await client.query("BEGIN");
 
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-
     await ensureCoreStaff(client, passwordHash);
     const deletedPlaceholders = await cleanupPlaceholderStaff(client);
-    const staffUpsert = await upsertRealStaff(client, passwordHash);
-    await normalizeTables(client);
-    await upsertMenu(client);
 
-    const { tableIdByNumber, menuByName } = await loadLookupMaps(client);
-    const created = await createShiftOrders(client, shiftDate, tableIdByNumber, menuByName);
+    const randomStaffPayload = generateRandomStaff(rng, runTag);
+    const insertedStaff = await insertRandomStaff(client, passwordHash, randomStaffPayload);
+
+    const currentTables = await client.query("SELECT id FROM restaurant_tables");
+    const tablePlan = buildTablePlan(rng, currentTables.rows.length);
+    await applyRandomTables(client, tablePlan);
+    const availableTables = await client.query(
+      "SELECT id, table_number, capacity FROM restaurant_tables ORDER BY id"
+    );
+
+    const randomMenuPayload = generateMenuSetup(rng, runTag);
+    const insertedMenu = await insertRandomMenu(client, randomMenuPayload);
+
+    const waiterIds = CORE_STAFF
+      .filter((member) => member.role === "WAITER")
+      .map((member) => member.id)
+      .concat(
+        insertedStaff
+          .filter((member) => member.role === "WAITER")
+          .map((member) => member.id)
+      );
+
+    const tableIds = availableTables.rows.map((row) => row.id);
+    const orderPlan = generateShiftOrderPlan(rng, tableIds, waiterIds, insertedMenu);
+    const created = await createRandomShiftOrders(client, shiftDate, orderPlan);
 
     await client.query("COMMIT");
 
     const report = await buildSalesReport(shiftDate);
 
-    console.log(`\nOne-day operation scenario created for ${shiftDate} (06:00-12:00).`);
+    console.log(`\nOne-day random operation scenario created for ${shiftDate} (06:00-12:00).`);
+    console.log(`Run tag: ${runTag}`);
+    console.log(`Seed: ${seedInput}`);
     console.log(`Placeholder staff removed: ${deletedPlaceholders}`);
-    console.log(`Real staff created: ${staffUpsert.created}, updated: ${staffUpsert.updated}`);
+    console.log(`Random staff inserted: ${insertedStaff.length}`);
+    console.log(`Random menu inserted: ${insertedMenu.length}`);
     console.log(`Orders created: ${created.createdOrders}, order items created: ${created.createdItems}`);
 
-    console.log("\nDaily Sales");
+    console.log("\nGenerated Staff");
+    console.table(insertedStaff);
+
+    console.log("Generated Menu");
+    console.table(
+      insertedMenu.map((item) => ({
+        id: item.id,
+        name: item.name,
+        category: item.category,
+        price: item.price
+      }))
+    );
+
+    console.log("Tables In Use");
+    console.table(availableTables.rows);
+
+    console.log("Daily Sales");
     console.table([report.daily]);
 
     console.log("Hourly Sales");

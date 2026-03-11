@@ -113,7 +113,8 @@ Import:
 
 ### One-day operation scenario
 
-Creates sample operation data from `06:00` to `12:00`, including role-normalized staff, table format normalization, menu setup, orders, and report output.
+Creates randomized operation data from `06:00` to `12:00`, including random staff/menu/tables/orders and report output.
+The data source (data bank) is in `scripts/scenario.data-bank.js`.
 
 ```bash
 npm run scenario:one-day
@@ -123,6 +124,12 @@ Run for specific date (`YYYY-MM-DD`, Windows cmd):
 
 ```bash
 set OPS_DATE=2026-03-12&& npm run scenario:one-day
+```
+
+Run with a fixed random seed (reproducible run):
+
+```bash
+set OPS_SEED=my-seed-value&& npm run scenario:one-day
 ```
 
 ### Cleanup scenario data
@@ -158,3 +165,4 @@ npm run menu:price-idr
 
 - Menu prices are now handled as IDR numeric values (e.g. `35000`).
 - If you run scenario scripts multiple times, use cleanup commands per date to keep data tidy.
+- Full cleanup removes scenario-marked random staff/menu data when no transaction references remain.
