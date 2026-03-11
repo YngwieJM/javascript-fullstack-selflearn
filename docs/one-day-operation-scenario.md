@@ -5,6 +5,12 @@ Generation is randomized on every run using the scenario data bank in `scripts/s
 
 ## Run
 
+Optional: start from clean minimal baseline first:
+
+```bash
+npm run db:reset-initial
+```
+
 ```bash
 npm run scenario:one-day
 ```

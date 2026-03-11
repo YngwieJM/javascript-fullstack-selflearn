@@ -161,6 +161,20 @@ Converts existing menu prices to Indonesian Rupiah scale.
 npm run menu:price-idr
 ```
 
+### Reset DB to minimal initial data (for new PC)
+
+Clears transactional/test data, resets ID sequences, and seeds a small baseline dataset.
+
+```bash
+npm run db:reset-initial
+```
+
+Seeded login accounts (default password: `123456`):
+
+- `admin@test.com` (`MANAGER`)
+- `anna@test.com` (`BARTENDER`)
+- `michael@test.com` (`WAITER`)
+
 ## Notes
 
 - Menu prices are now handled as IDR numeric values (e.g. `35000`).

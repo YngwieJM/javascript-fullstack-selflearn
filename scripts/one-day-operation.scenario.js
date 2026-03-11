@@ -12,11 +12,11 @@ const SHIFT_WINDOW_LABEL = `${String(SHIFT_START_HOUR).padStart(2, "0")}:00-${St
 ).padStart(2, "0")}:00`;
 
 const CORE_STAFF = [
-  { id: 2, name: "Anna", email: "anna@test.com", role: "BARTENDER" },
-  { id: 3, name: "Michael", email: "michael@test.com", role: "WAITER" },
-  { id: 4, name: "Admin", email: "admin@test.com", role: "MANAGER" },
-  { id: 5, name: "Jordan", email: "jordan@test.com", role: "WAITER" },
-  { id: 6, name: "Lisa", email: "lisa@test.com", role: "WAITER" }
+  { name: "Anna", email: "anna@test.com", role: "BARTENDER" },
+  { name: "Michael", email: "michael@test.com", role: "WAITER" },
+  { name: "Admin", email: "admin@test.com", role: "MANAGER" },
+  { name: "Jordan", email: "jordan@test.com", role: "WAITER" },
+  { name: "Lisa", email: "lisa@test.com", role: "WAITER" }
 ];
 
 function localDateString(date = new Date()) {
@@ -216,19 +216,37 @@ function generateShiftOrderPlan(rng, tableIds, staffIds, menuRows) {
 }
 
 async function ensureCoreStaff(client, passwordHash) {
+  const resolved = [];
+
   for (const member of CORE_STAFF) {
-    const exists = await client.query("SELECT id FROM staff WHERE id = $1", [member.id]);
-    if (exists.rows.length === 0) {
-      throw new Error(`Missing required staff id ${member.id}. Seed baseline staff first.`);
+    const existing = await client.query(
+      "SELECT id FROM staff WHERE LOWER(email) = LOWER($1) LIMIT 1",
+      [member.email]
+    );
+
+    if (existing.rows.length > 0) {
+      const result = await client.query(
+        `UPDATE staff
+         SET name = $1, role = $2, password = $3
+         WHERE id = $4
+         RETURNING id, name, email, role`,
+        [member.name, member.role, passwordHash, existing.rows[0].id]
+      );
+      resolved.push(result.rows[0]);
+      continue;
     }
 
-    await client.query(
-      `UPDATE staff
-       SET name = $1, email = $2, role = $3, password = $4
-       WHERE id = $5`,
-      [member.name, member.email.toLowerCase(), member.role, passwordHash, member.id]
+    const inserted = await client.query(
+      `INSERT INTO staff (name, email, role, password)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, email, role`,
+      [member.name, member.email.toLowerCase(), member.role, passwordHash]
     );
+
+    resolved.push(inserted.rows[0]);
   }
+
+  return resolved;
 }
 
 async function cleanupPlaceholderStaff(client) {
@@ -437,7 +455,7 @@ async function main() {
     await client.query("BEGIN");
 
     const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 10);
-    await ensureCoreStaff(client, passwordHash);
+    const coreStaff = await ensureCoreStaff(client, passwordHash);
     const deletedPlaceholders = await cleanupPlaceholderStaff(client);
 
     const randomStaffPayload = generateRandomStaff(rng, runTag);
@@ -453,7 +471,7 @@ async function main() {
     const randomMenuPayload = generateMenuSetup(rng, runTag);
     const insertedMenu = await insertRandomMenu(client, randomMenuPayload);
 
-    const waiterIds = CORE_STAFF
+    const waiterIds = coreStaff
       .filter((member) => member.role === "WAITER")
       .map((member) => member.id)
       .concat(
