@@ -13,6 +13,7 @@ const tablesRoute = require("./routes/tables.routes");
 const authRoute = require("./routes/auth.routes");
 const reportRoutes = require("./routes/reports.routes");
 const {errorHandler} = require("./middleware/error.middleware");
+const { formatDateResponse } = require("./middleware/response-date-format.middleware");
 const { session: sessionCfg } = require("./config/env");
 let swaggerUi = null;
 
@@ -46,6 +47,7 @@ app.use(session({
         maxAge: sessionCfg.ttlMinutes * 60 * 1000
     }
 }));
+app.use(formatDateResponse);
 
 app.get("/openapi.json", (req, res) => {
     if(!fs.existsSync(openApiPath)){
