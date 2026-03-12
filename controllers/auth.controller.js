@@ -1,8 +1,23 @@
 const pool = require("../config/db");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
 
-const JWT_SECRET = "supersecretkey"; // later move to .env
+function regenerateSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.regenerate((err) => (err ? reject(err) : resolve()));
+    });
+}
+
+function saveSession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.save((err) => (err ? reject(err) : resolve()));
+    });
+}
+
+function destroySession(req) {
+    return new Promise((resolve, reject) => {
+        req.session.destroy((err) => (err ? reject(err) : resolve()));
+    });
+}
 
 exports.register = async (req, res) => {
     const {name, email, password, role} = req.body;
@@ -43,7 +58,8 @@ exports.login = async (req, res) => {
 
     try{
         const result = await pool.query(
-            `SELECT * FROM staff WHERE email = $1`, [email]
+            `SELECT id, name, email, role, password 
+             FROM staff WHERE LOWER(email) = LOWER($1) LIMIT 1`, [email]
         );
 
         if(result.rows.length === 0){
@@ -58,13 +74,43 @@ exports.login = async (req, res) => {
             return res.status(401).json({message: "Invalid credentials"});
         }
 
-        const token = jwt.sign(
-            {id: user.id, role: user.role}, JWT_SECRET, {expiresIn: "8h"}
-        );
+        await regenerateSession(req);
 
-        res.json({message: "Login successful", token});
+        req.session.user = {
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role
+        };
+
+        await saveSession(req);
+
+        return res.json({
+            message:"Login successful",
+            user: req.session.user
+        });
+
     }catch(err){
         console.error(err);
-        res.status(500).json({message: "Internal server error"});
+        return res.status(500).json({message: "Internal server error"});
     }
 };
+
+exports.logout = async (req, res) => {
+    try{
+        await destroySession(req);
+        res.clearCookie("sid");
+        return res.json({ message: "Logged Out"});
+    }catch(err){
+        console.error(err);
+        return res.status(500).json({message: "Internal Server Error"});
+    }
+};
+
+exports.me = async (req, res) => {
+    if(!req.session || !req.session.user) {
+        return res.status(401).json({ message: "Unauthorized" });
+    }
+
+    return res.json({ user: req.session.user});
+}

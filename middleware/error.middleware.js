@@ -2,6 +2,10 @@ exports.errorHandler= (err, req, res, next) => {
 
     console.error(err);
 
+    if(res.headersSent){
+        return next(err);
+    }
+
     let statusCode = 500;
     let message = "Internal Server Error";
 

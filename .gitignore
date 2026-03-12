@@ -5,7 +5,6 @@
 .continue/rules/new-rule.md
 seedPassword.js
 db.js
-config/db.js
 node_modules/
 .env
 .env.*

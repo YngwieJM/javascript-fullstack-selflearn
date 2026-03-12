@@ -1,10 +1,11 @@
 # Restaurant API
 
-Backend API for restaurant operations using Node.js, Express, PostgreSQL, JWT auth, and Zod validation.
+Backend API for restaurant operations using Node.js, Express, PostgreSQL, stateful session auth, and Zod validation.
 
 ## Features
 
-- Auth: register, login, forgot password, reset password
+- Auth: register, login, logout, current session user (`/auth/me`)
+- Stateful auth sessions stored in PostgreSQL (`express-session` + `connect-pg-simple`)
 - Role-based access control (`MANAGER`, `WAITER`, `BARTENDER`)
 - CRUD modules:
   - Staff
@@ -22,7 +23,8 @@ Backend API for restaurant operations using Node.js, Express, PostgreSQL, JWT au
 - Node.js (CommonJS)
 - Express
 - PostgreSQL (`pg`)
-- JWT (`jsonwebtoken`)
+- Session middleware (`express-session`)
+- PostgreSQL session store (`connect-pg-simple`)
 - Password hashing (`bcrypt`)
 - Validation (`zod`)
 - Testing (`jest`, `supertest`)
@@ -52,6 +54,11 @@ copy config\\.env.example config\\.env
 ```env
 JWT_SECRET=replace-with-your-jwt-secret
 PASSWORD_RESET_MINUTES=15
+SESSION_SECRET=replace-with-your-session-secret
+SESSION_TTL_MINUTES=480
+COOKIE_SECURE=false
+COOKIE_SAME_SITE=lax
+CORS_ORIGIN=http://localhost:5173
 
 DB_USER=postgres
 DB_HOST=localhost
@@ -70,6 +77,7 @@ PORT=3000
 - `orders`
 - `order_items`
 - `password_reset_tokens`
+- `session` (auto-created if missing by `connect-pg-simple`)
 
 Note: this repo currently does not include DB migration files.
 
@@ -92,13 +100,24 @@ npm test
 - `/auth`
   - `POST /auth/register`
   - `POST /auth/login`
-  - `POST /auth/forgot-password`
-  - `POST /auth/reset-password`
+  - `POST /auth/logout` (requires session)
+  - `GET /auth/me` (requires session)
 - `/staff`
 - `/menu`
 - `/orders`
 - `/tables`
 - `/reports`
+
+## Auth Session Behavior
+
+- Authentication is stateful: server stores session data in PostgreSQL table `session`.
+- Browser/client stores only the session cookie (`sid`), not user/session payload.
+- Session idle timeout uses `SESSION_TTL_MINUTES`.
+- With `rolling: true` enabled, each valid request extends expiry.
+- Example: `SESSION_TTL_MINUTES=120` means logout after 120 minutes of inactivity.
+- For frontend on a different origin, send cookies on every request:
+  - `fetch(..., { credentials: "include" })`
+  - `axios` with `withCredentials: true`
 
 OpenAPI files are available in `docs/` (e.g. `docs/openapi.json`).
 
