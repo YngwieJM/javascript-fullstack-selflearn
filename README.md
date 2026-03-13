@@ -30,6 +30,35 @@ Backend API for restaurant operations using Node.js, Express, PostgreSQL, statef
 - Validation (`zod`)
 - Testing (`jest`, `supertest`)
 
+## Architecture Diagram
+
+```mermaid
+flowchart LR
+  Client[Frontend / Postman] -->|HTTP + Cookie Session| API[Express API]
+  API -->|Session Store| SessionTable[(PostgreSQL: session)]
+  API -->|Business Queries| DB[(PostgreSQL: App Tables)]
+  API --> Docs[OpenAPI + Swagger UI]
+```
+
+## API Flow
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant A as API (Express)
+  participant D as PostgreSQL
+
+  C->>A: POST /auth/login (email, password)
+  A->>D: Verify staff credentials
+  D-->>A: User row
+  A-->>C: 200 + Set-Cookie: sid
+
+  C->>A: GET /reports/hourly-sales?date=YYYY-MM-DD (with sid cookie)
+  A->>D: Query CLOSED orders + optional date filter
+  D-->>A: Aggregated rows
+  A-->>C: JSON response
+```
+
 ## Requirements
 
 - Node.js 18+ (recommended)
@@ -71,8 +100,7 @@ DB_PORT=5432
 PORT=3000
 ```
 
-4. Ensure your PostgreSQL database exists and includes required tables:
-Create database and import provided schema dump:
+4. Create database and import the provided schema dump:
 
 ```bash
 createdb -U postgres restaurant_db
