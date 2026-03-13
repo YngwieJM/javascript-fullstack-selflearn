@@ -34,6 +34,7 @@ Backend API for restaurant operations using Node.js, Express, PostgreSQL, statef
 
 - Node.js 18+ (recommended)
 - PostgreSQL 14+ (recommended)
+- PostgreSQL client tools (`psql`) (recommended for DB bootstrap)
 - npm
 
 ## Setup
@@ -71,16 +72,24 @@ PORT=3000
 ```
 
 4. Ensure your PostgreSQL database exists and includes required tables:
+Create database and import provided schema dump:
 
-- `staff`
-- `restaurant_tables`
-- `menu_items`
-- `orders`
-- `order_items`
-- `password_reset_tokens`
-- `session` (auto-created if missing by `connect-pg-simple`)
+```bash
+createdb -U postgres restaurant_db
+psql -U postgres -d restaurant_db -f restaurant_db.sql
+```
 
-Note: this repo currently does not include DB migration files.
+Notes:
+
+- `restaurant_db.sql` is a PostgreSQL plain dump of the schema (tables, constraints, indexes, sequences).
+- Run with `psql` (recommended), because the dump contains PostgreSQL meta commands (`\\restrict` / `\\unrestrict`).
+- If `DB_NAME` in `.env` is different, use that database name in the commands above.
+
+5. Optional: seed minimal initial data (staff/menu/tables):
+
+```bash
+npm run db:reset-initial
+```
 
 ## Run
 
