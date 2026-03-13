@@ -1,9 +1,9 @@
 const { z } = require("zod");
 
-const dataQuerySchema = z.object({
+const dateRangeQuerySchema = z.object({
     query: z.object({
-        star_date: z.string().date().optional(),
-        end_dat: z.string().date().optional()
+        start_date: z.string().date().optional(),
+        end_date: z.string().date().optional()
     })
 });
 
@@ -14,6 +14,6 @@ const hourlySalesQuerySchema = z.object({
 });
 
 module.exports = {
-    dataQuerySchema,
+    dateRangeQuerySchema,
     hourlySalesQuerySchema
 };

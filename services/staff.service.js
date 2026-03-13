@@ -52,7 +52,7 @@ exports.updateStaff = async (id, name, email, role) => {
         return result.rows[0];
 };
 
-exports.updatePassword = async (id, currectPassword, newPassword) => {
+exports.updatePassword = async (id, currentPassword, newPassword) => {
     
 
     const staffResult = await pool.query(
@@ -65,15 +65,15 @@ exports.updatePassword = async (id, currectPassword, newPassword) => {
 
     const storedPassword = staffResult.rows[0].password;
 
-    const passwordMacth = await bcrypt.compare(currectPassword, storedPassword);
+    const passwordMatch = await bcrypt.compare(currentPassword, storedPassword);
 
-    if(!passwordMacth){
+    if(!passwordMatch){
         throw new Error("INVALID_PASSWORD");
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-    const result = await pool.query(
+    await pool.query(
         `UPDATE staff SET password = $1
         WHERE id = $2 RETURNING id`,[hashedPassword, id]
     );
