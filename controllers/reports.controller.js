@@ -38,7 +38,8 @@ exports.getSalesByCategory = asyncHandler(async(req, res) => {
 
 exports.getHourlySales = asyncHandler(async(req, res) => {
 
-    const data = await reportsService.getHourlySales();
+    const data = await reportsService.getHourlySales(req.query.date);
 
     res.json(data);
 });
+

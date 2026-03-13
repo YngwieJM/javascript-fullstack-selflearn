@@ -7,6 +7,13 @@ const dataQuerySchema = z.object({
     })
 });
 
+const hourlySalesQuerySchema = z.object({
+    query: z.object({
+        date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional()
+    })
+});
+
 module.exports = {
-    dataQuerySchema
+    dataQuerySchema,
+    hourlySalesQuerySchema
 };

@@ -65,15 +65,27 @@ exports.getSalesByCategory = async () => {
     return result.rows;
 };
 
-exports.getHourlySales = async () => {
+exports.getHourlySales = async (date) => {
+  const values = [];
+  let where = "o.status = 'CLOSED'";
 
-    const result = await pool.query(
-        `SELECT TO_CHAR(o.created_at, 'HH24:00') AS hour,
-            COUNT(DISTINCT o.id) AS total_orders,
-            SUM(oi.quantity * oi.price_at_time) AS total_revenue
-        FROM orders o JOIN order_items oi ON oi.order_id = o.id
-        WHERE o.status = 'CLOSED' GROUP BY hour ORDER BY hour`
-    );
+  if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    values.push(date);
+    // Adjust timezone if your app is not UTC
+    where += " AND DATE(o.created_at) = $1::date";
+  }
 
-    return result.rows;
-}
+  const result = await pool.query(
+    `SELECT TO_CHAR(DATE_TRUNC('hour', o.created_at), 'DD-MM-YYYY HH24:00:00') AS hour,
+         COUNT(DISTINCT o.id)::int AS total_orders,
+         COALESCE(SUM(oi.quantity * oi.price_at_time), 0) AS total_revenue
+     FROM orders o
+     JOIN order_items oi ON oi.order_id = o.id
+     WHERE ${where}
+     GROUP BY DATE_TRUNC('hour', o.created_at)
+     ORDER BY DATE_TRUNC('hour', o.created_at)`,
+    values
+  );
+
+  return result.rows;
+};
