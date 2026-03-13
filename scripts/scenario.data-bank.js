@@ -72,18 +72,40 @@ module.exports = {
     { prefix: "Terrace", min: 2, max: 4, capacities: [2, 4, 6] },
     { prefix: "Table", min: 3, max: 8, capacities: [2, 4] }
   ],
-  menuNamePrefixes: [
-    "House",
-    "Signature",
-    "Classic",
-    "Special",
-    "Premium",
-    "Spicy",
-    "Creamy",
-    "Fresh",
-    "Roasted",
-    "Chef"
-  ],
+  menuNamePrefixesByCategory: {
+    DRINK: [
+      "Fresh",
+      "Iced",
+      "Classic",
+      "Signature",
+      "House",
+      "Sparkling",
+      "Tropical"
+    ],
+    FOOD: [
+      "Chef",
+      "Roasted",
+      "Smoky",
+      "Savory",
+      "Special",
+      "Signature",
+      "House"
+    ],
+    DESSERT: [
+      "Sweet",
+      "Creamy",
+      "Velvet",
+      "Classic",
+      "Delight",
+      "Signature",
+      "House"
+    ],
+    DEFAULT: [
+      "House",
+      "Signature",
+      "Classic"
+    ]
+  },
   menuTemplates: [
     { name: "Espresso", category: "DRINK", minPrice: 22000, maxPrice: 35000 },
     { name: "Americano", category: "DRINK", minPrice: 24000, maxPrice: 38000 },

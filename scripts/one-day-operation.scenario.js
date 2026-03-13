@@ -158,6 +158,27 @@ function toIdrPrice(price) {
   return Math.max(rounded, PRICE_STEP);
 }
 
+function normalizeMenuName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function hasBaseTemplateName(existingMenuRows, templateName) {
+  const normalizedTemplate = normalizeMenuName(templateName);
+  if (!normalizedTemplate) return false;
+
+  return existingMenuRows.some((row) => {
+    const normalizedExisting = normalizeMenuName(row?.name);
+    return (
+      normalizedExisting === normalizedTemplate ||
+      normalizedExisting.endsWith(` ${normalizedTemplate}`)
+    );
+  });
+}
+
 function buildRunTag(shiftDate, rng) {
   const compactDate = shiftDate.replace(/-/g, "");
   const token = Math.floor(rng() * 1e7).toString().padStart(7, "0");
@@ -249,14 +270,27 @@ function buildTablePlan(rng, currentTableCount) {
   return shuffle(rng, plan).slice(0, targetCount);
 }
 
-function generateMenuSetup(rng) {
-  const minCount = 10;
-  const maxCount = Math.min(16, dataBank.menuTemplates.length);
+function generateMenuSetup(rng, existingMenuRows) {
+  const availableTemplates = dataBank.menuTemplates.filter(
+    (template) => !hasBaseTemplateName(existingMenuRows, template.name)
+  );
+
+  if (availableTemplates.length === 0) {
+    return [];
+  }
+
+  const minCount = Math.min(10, availableTemplates.length);
+  const maxCount = Math.min(16, availableTemplates.length);
   const count = randomInt(rng, minCount, maxCount);
-  const selectedTemplates = uniquePick(rng, dataBank.menuTemplates, count);
+  const selectedTemplates = uniquePick(rng, availableTemplates, count);
+  const prefixesByCategory = dataBank.menuNamePrefixesByCategory || {};
 
   return selectedTemplates.map((template) => {
-    const prefix = pickOne(rng, dataBank.menuNamePrefixes);
+    const prefixPool =
+      prefixesByCategory[template.category] ||
+      prefixesByCategory.DEFAULT ||
+      ["House"];
+    const prefix = pickOne(rng, prefixPool);
     const rawPrice = randomInt(rng, template.minPrice, template.maxPrice);
     const idrPrice = toIdrPrice(rawPrice);
     return {
@@ -565,8 +599,18 @@ async function main() {
       "SELECT id, table_number, capacity FROM restaurant_tables ORDER BY id"
     );
 
-    const randomMenuPayload = generateMenuSetup(rng);
+    const existingMenuResult = await client.query(
+      "SELECT name FROM menu_items ORDER BY id"
+    );
+    const randomMenuPayload = generateMenuSetup(rng, existingMenuResult.rows);
     const insertedMenu = await insertRandomMenu(client, randomMenuPayload);
+    const availableMenuResult = await client.query(
+      `SELECT id, name, category, price
+       FROM menu_items
+       WHERE is_available = TRUE
+       ORDER BY id`
+    );
+    const availableMenuForOrders = availableMenuResult.rows;
 
     const waiterIds = coreStaff
       .filter((member) => member.role === "WAITER")
@@ -578,7 +622,12 @@ async function main() {
       );
 
     const tableIds = availableTables.rows.map((row) => row.id);
-    const orderPlan = generateShiftOrderPlan(rng, tableIds, waiterIds, insertedMenu);
+    const orderPlan = generateShiftOrderPlan(
+      rng,
+      tableIds,
+      waiterIds,
+      availableMenuForOrders
+    );
     const created = await createRandomShiftOrders(client, shiftDate, orderPlan);
 
     await client.query("COMMIT");
@@ -597,6 +646,7 @@ async function main() {
       console.log("Random staff skipped: current staff count already reached cap.");
     }
     console.log(`Random menu inserted: ${insertedMenu.length}`);
+    console.log(`Menu pool used for orders: ${availableMenuForOrders.length}`);
     console.log(`Orders created: ${created.createdOrders}, order items created: ${created.createdItems}`);
 
     console.log("\nGenerated Staff");
