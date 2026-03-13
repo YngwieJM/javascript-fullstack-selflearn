@@ -7,6 +7,7 @@ Backend API for restaurant operations using Node.js, Express, PostgreSQL, statef
 - Auth: register, login, logout, current session user (`/auth/me`)
 - Stateful auth sessions stored in PostgreSQL (`express-session` + `connect-pg-simple`)
 - Role-based access control (`MANAGER`, `WAITER`, `BARTENDER`)
+- API date/datetime response format normalized to `DD-MM-YYYY HH:mm:ss`
 - CRUD modules:
   - Staff
   - Menu
@@ -107,6 +108,7 @@ npm test
 - `/orders`
 - `/tables`
 - `/reports`
+  - `GET /reports/hourly-sales?date=YYYY-MM-DD` (optional date filter, `MANAGER` only)
 
 ## Auth Session Behavior
 
@@ -118,6 +120,18 @@ npm test
 - For frontend on a different origin, send cookies on every request:
   - `fetch(..., { credentials: "include" })`
   - `axios` with `withCredentials: true`
+
+## Reports Notes
+
+- `GET /reports/hourly-sales`:
+  - without `date`: returns all-time hourly aggregates
+  - with `date=YYYY-MM-DD`: returns hourly aggregates only for that specific date
+- Report aggregation only includes `CLOSED` orders.
+
+## Response Date Format
+
+- API JSON date/datetime values are formatted as `DD-MM-YYYY HH:mm:ss`.
+- Example: `14-03-2026 09:15:00`.
 
 OpenAPI files are available in `docs/` (e.g. `docs/openapi.json`).
 
@@ -156,6 +170,12 @@ Run for specific date (`YYYY-MM-DD`, Windows cmd):
 ```bash
 set OPS_DATE=2026-03-12&& npm run scenario:one-day
 ```
+
+Important date rule:
+
+- `OPS_DATE` is constrained to today through 7 days in the past.
+- If omitted, scenario picks a random date in that window.
+- If date is outside that range, script clamps to nearest allowed date.
 
 Run with a fixed random seed (reproducible run):
 
@@ -205,6 +225,22 @@ Seeded login accounts (default password: `123456`):
 - `admin@test.com` (`MANAGER`)
 - `anna@test.com` (`BARTENDER`)
 - `michael@test.com` (`WAITER`)
+
+## Branch Change Summary (vs `origin/main`)
+
+- Auth moved from stateless JWT flow to stateful session-based auth.
+- Added session configuration (`express-session` + `connect-pg-simple`) and env keys.
+- Added `/auth/logout` and `/auth/me`.
+- Added global API date formatter to `DD-MM-YYYY HH:mm:ss`.
+- Updated reports hourly endpoint to support optional `date` query filter.
+- Expanded scenario scripts:
+  - date window guard (today to 7 days past)
+  - cleaner/randomized data bank
+  - realistic generated emails (`name@domain`)
+  - staff cap for random inserts (max 15 total)
+  - category-based menu prefixes (`DRINK`, `FOOD`, `DESSERT`)
+  - avoid duplicate base menu variants across runs
+  - order generation uses available menu pool (existing + newly inserted)
 
 ## Notes
 

@@ -1,27 +1,45 @@
 {
   "info": {
     "name": "Restaurant API - Models",
-    "description": "Collection grouped by model for Auth, Menu, Orders, Staff, Tables, and Reports APIs.",
+    "description": "Collection grouped by model for Auth, Menu, Orders, Staff, Tables, and Reports APIs. Uses stateful session cookie auth (login first).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
-    "type": "bearer",
-    "bearer": [
-      {
-        "key": "token",
-        "value": "{{access_token}}",
-        "type": "string"
-      }
-    ]
+    "type": "noauth"
   },
   "variable": [
-    { "key": "base_url", "value": "http://localhost:3000" },
-    { "key": "access_token", "value": "" },
-    { "key": "reset_token", "value": "" },
-    { "key": "menu_id", "value": "1" },
-    { "key": "order_id", "value": "1" },
-    { "key": "table_id", "value": "1" },
-    { "key": "staff_id", "value": "1" }
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "manager_email",
+      "value": "admin@test.com"
+    },
+    {
+      "key": "manager_password",
+      "value": "123456"
+    },
+    {
+      "key": "report_date",
+      "value": "2026-03-14"
+    },
+    {
+      "key": "menu_id",
+      "value": "1"
+    },
+    {
+      "key": "order_id",
+      "value": "1"
+    },
+    {
+      "key": "table_id",
+      "value": "1"
+    },
+    {
+      "key": "staff_id",
+      "value": "1"
+    }
   ],
   "item": [
     {
@@ -30,16 +48,23 @@
         {
           "name": "Register",
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"John\",\n  \"email\": \"john@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"WAITER\"\n}"
             },
-            "url": { "raw": "{{base_url}}/auth/register" }
+            "url": {
+              "raw": "{{base_url}}/auth/register"
+            }
           }
         },
         {
@@ -50,65 +75,59 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
+                  "pm.test(\"Login success\", function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
                   "const json = pm.response.json();",
-                  "if (json.token) pm.collectionVariables.set('access_token', json.token);"
+                  "if (json.user && json.user.id) pm.collectionVariables.set(\"staff_id\", String(json.user.id));"
                 ]
               }
             }
           ],
           "request": {
-            "auth": { "type": "noauth" },
+            "auth": {
+              "type": "noauth"
+            },
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"email\": \"manager@example.com\",\n  \"password\": \"123456\"\n}"
-            },
-            "url": { "raw": "{{base_url}}/auth/login" }
-          }
-        },
-        {
-          "name": "Forgot Password",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "const json = pm.response.json();",
-                  "if (json.resetToken) pm.collectionVariables.set('reset_token', json.resetToken);"
-                ]
+              {
+                "key": "Content-Type",
+                "value": "application/json"
               }
-            }
-          ],
-          "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"email\": \"manager@example.com\"\n}"
+              "raw": "{\n  \"email\": \"{{manager_email}}\",\n  \"password\": \"{{manager_password}}\"\n}"
             },
-            "url": { "raw": "{{base_url}}/auth/forgot-password" }
+            "url": {
+              "raw": "{{base_url}}/auth/login"
+            }
           }
         },
         {
-          "name": "Reset Password",
+          "name": "Me",
           "request": {
-            "auth": { "type": "noauth" },
-            "method": "POST",
-            "header": [
-              { "key": "Content-Type", "value": "application/json" }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"token\": \"{{reset_token}}\",\n  \"newPassword\": \"123456\"\n}"
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/me"
             },
-            "url": { "raw": "{{base_url}}/auth/reset-password" }
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -123,9 +142,18 @@
             "url": {
               "raw": "{{base_url}}/menu?page=1&limit=10",
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -133,7 +161,12 @@
           "name": "Get Menu By Id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/menu/{{menu_id}}" }
+            "url": {
+              "raw": "{{base_url}}/menu/{{menu_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -141,13 +174,21 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Burger\",\n  \"category\": \"FOOD\",\n  \"price\": 50000\n}"
             },
-            "url": { "raw": "{{base_url}}/menu" }
+            "url": {
+              "raw": "{{base_url}}/menu"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -155,13 +196,21 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Cheese Burger\",\n  \"price\": 55000\n}"
             },
-            "url": { "raw": "{{base_url}}/menu/{{menu_id}}" }
+            "url": {
+              "raw": "{{base_url}}/menu/{{menu_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -169,20 +218,33 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"is_available\": false\n}"
             },
-            "url": { "raw": "{{base_url}}/menu/{{menu_id}}/availability" }
+            "url": {
+              "raw": "{{base_url}}/menu/{{menu_id}}/availability"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Delete Menu",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/menu/{{menu_id}}" }
+            "url": {
+              "raw": "{{base_url}}/menu/{{menu_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -197,9 +259,18 @@
             "url": {
               "raw": "{{base_url}}/orders?page=1&limit=10",
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -207,7 +278,12 @@
           "name": "Get Order By Id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/orders/{{order_id}}" }
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -215,13 +291,21 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"table_id\": 1,\n  \"staff_id\": 1\n}"
             },
-            "url": { "raw": "{{base_url}}/orders" }
+            "url": {
+              "raw": "{{base_url}}/orders"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -229,27 +313,45 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"menu_item_id\": 1,\n  \"quantity\": 2\n}"
             },
-            "url": { "raw": "{{base_url}}/orders/{{order_id}}/items" }
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/items"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Close Order",
           "request": {
             "method": "PATCH",
-            "url": { "raw": "{{base_url}}/orders/{{order_id}}/close" }
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}/close"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Delete Order",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/orders/{{order_id}}" }
+            "url": {
+              "raw": "{{base_url}}/orders/{{order_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -264,9 +366,18 @@
             "url": {
               "raw": "{{base_url}}/staff?page=1&limit=10",
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -274,7 +385,12 @@
           "name": "Get Staff By Id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/staff/{{staff_id}}" }
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -282,13 +398,21 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Anna\",\n  \"email\": \"anna@example.com\",\n  \"password\": \"123456\",\n  \"role\": \"WAITER\"\n}"
             },
-            "url": { "raw": "{{base_url}}/staff" }
+            "url": {
+              "raw": "{{base_url}}/staff"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -296,13 +420,21 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Anna Updated\",\n  \"email\": \"anna.updated@example.com\",\n  \"role\": \"BARTENDER\"\n}"
             },
-            "url": { "raw": "{{base_url}}/staff/{{staff_id}}" }
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -310,20 +442,33 @@
           "request": {
             "method": "PATCH",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"currentPassword\": \"123456\",\n  \"newPassword\": \"1234567\"\n}"
             },
-            "url": { "raw": "{{base_url}}/staff/{{staff_id}}" }
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Delete Staff",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/staff/{{staff_id}}" }
+            "url": {
+              "raw": "{{base_url}}/staff/{{staff_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -338,9 +483,18 @@
             "url": {
               "raw": "{{base_url}}/tables?page=1&limit=10",
               "query": [
-                { "key": "page", "value": "1" },
-                { "key": "limit", "value": "10" }
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
               ]
+            },
+            "auth": {
+              "type": "noauth"
             }
           }
         },
@@ -348,7 +502,12 @@
           "name": "Get Table By Id",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/tables/{{table_id}}" }
+            "url": {
+              "raw": "{{base_url}}/tables/{{table_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -356,13 +515,21 @@
           "request": {
             "method": "POST",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"table_number\": \"T5\",\n  \"capacity\": 4\n}"
             },
-            "url": { "raw": "{{base_url}}/tables" }
+            "url": {
+              "raw": "{{base_url}}/tables"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
@@ -370,20 +537,33 @@
           "request": {
             "method": "PUT",
             "header": [
-              { "key": "Content-Type", "value": "application/json" }
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
             ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"table_number\": \"T5\",\n  \"capacity\": 6\n}"
             },
-            "url": { "raw": "{{base_url}}/tables/{{table_id}}" }
+            "url": {
+              "raw": "{{base_url}}/tables/{{table_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Delete Table",
           "request": {
             "method": "DELETE",
-            "url": { "raw": "{{base_url}}/tables/{{table_id}}" }
+            "url": {
+              "raw": "{{base_url}}/tables/{{table_id}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
@@ -395,42 +575,85 @@
           "name": "Daily Sales",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/daily-sales" }
+            "url": {
+              "raw": "{{base_url}}/reports/daily-sales"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Top Menu",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/top-menu" }
+            "url": {
+              "raw": "{{base_url}}/reports/top-menu"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Revenue",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/revenue" }
+            "url": {
+              "raw": "{{base_url}}/reports/revenue"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Sales By Staff",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/sales-by-staff" }
+            "url": {
+              "raw": "{{base_url}}/reports/sales-by-staff"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Sales By Category",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/sales-by-category" }
+            "url": {
+              "raw": "{{base_url}}/reports/sales-by-category"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         },
         {
           "name": "Hourly Sales",
           "request": {
             "method": "GET",
-            "url": { "raw": "{{base_url}}/reports/hourly-sales" }
+            "url": {
+              "raw": "{{base_url}}/reports/hourly-sales"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Hourly Sales (By Date)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/reports/hourly-sales?date={{report_date}}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
           }
         }
       ]
