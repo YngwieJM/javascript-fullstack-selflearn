@@ -10,6 +10,17 @@ const PRICE_STEP = 1000;
 const SHIFT_WINDOW_LABEL = `${String(SHIFT_START_HOUR).padStart(2, "0")}:00-${String(
   SHIFT_END_HOUR
 ).padStart(2, "0")}:00`;
+const MAX_PAST_DAYS = Number.isInteger(dataBank.operationDateWindow?.maxPastDays)
+  ? Math.max(0, dataBank.operationDateWindow.maxPastDays)
+  : 7;
+const MAX_TOTAL_STAFF = Number.isInteger(dataBank.staffPolicy?.maxTotal)
+  ? Math.max(0, dataBank.staffPolicy.maxTotal)
+  : 15;
+const GENERATED_EMAIL_DOMAIN =
+  typeof dataBank.staffPolicy?.generatedEmailDomain === "string" &&
+  dataBank.staffPolicy.generatedEmailDomain.trim() !== ""
+    ? dataBank.staffPolicy.generatedEmailDomain.trim().toLowerCase()
+    : "restaurantmail.com";
 
 const CORE_STAFF = [
   { name: "Anna", email: "anna@test.com", role: "BARTENDER" },
@@ -30,6 +41,63 @@ function assertDateInput(dateString) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
     throw new Error("OPS_DATE must use YYYY-MM-DD format");
   }
+}
+
+function parseLocalDate(dateString) {
+  const [year, month, day] = dateString.split("-").map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function startOfToday() {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  return today;
+}
+
+function getAllowedDateRange(maxPastDays) {
+  const maxBack = Number.isInteger(maxPastDays) ? Math.max(0, maxPastDays) : 7;
+  const latest = startOfToday();
+  const earliest = new Date(latest);
+  earliest.setDate(latest.getDate() - maxBack);
+  return { earliest, latest, maxBack };
+}
+
+function pickDateInAllowedRange(rng, maxPastDays) {
+  const { latest, maxBack } = getAllowedDateRange(maxPastDays);
+  const offset = randomInt(rng, 0, maxBack);
+  const picked = new Date(latest);
+  picked.setDate(latest.getDate() - offset);
+  return localDateString(picked);
+}
+
+function resolveShiftDate(inputDate, rng, maxPastDays) {
+  if (typeof inputDate !== "string" || inputDate.trim() === "") {
+    return pickDateInAllowedRange(rng, maxPastDays);
+  }
+
+  const requested = inputDate.trim();
+  assertDateInput(requested);
+
+  const { earliest, latest, maxBack } = getAllowedDateRange(maxPastDays);
+  const parsed = parseLocalDate(requested);
+
+  if (parsed > latest) {
+    const clamped = localDateString(latest);
+    console.log(
+      `OPS_DATE ${requested} is in the future. Using ${clamped} (allowed window: today to ${maxBack} days back).`
+    );
+    return clamped;
+  }
+
+  if (parsed < earliest) {
+    const clamped = localDateString(earliest);
+    console.log(
+      `OPS_DATE ${requested} is older than ${maxBack} days. Using ${clamped} instead.`
+    );
+    return clamped;
+  }
+
+  return localDateString(parsed);
 }
 
 function createSeededRandom(seedText) {
@@ -96,15 +164,31 @@ function buildRunTag(shiftDate, rng) {
   return `${compactDate}-${token}`;
 }
 
-function generateRandomStaff(rng, runTag) {
+function generateRandomStaff(rng, existingStaffRows, maxNewStaff) {
+  if (!Number.isInteger(maxNewStaff) || maxNewStaff <= 0) {
+    return [];
+  }
+
   const generated = [];
   const usedNames = new Set();
   const usedEmails = new Set();
   const roles = ["WAITER", "BARTENDER"];
 
+  for (const row of existingStaffRows || []) {
+    if (row?.name) usedNames.add(String(row.name).toLowerCase());
+    if (row?.email) usedEmails.add(String(row.email).toLowerCase());
+  }
+
   for (const role of roles) {
+    if (generated.length >= maxNewStaff) {
+      break;
+    }
+
     const plan = dataBank.rolePlan[role];
-    const targetCount = randomInt(rng, plan.min, plan.max);
+    const targetCount = Math.min(
+      randomInt(rng, plan.min, plan.max),
+      maxNewStaff - generated.length
+    );
 
     for (let i = 0; i < targetCount; i += 1) {
       let fullName = "";
@@ -115,13 +199,18 @@ function generateRandomStaff(rng, runTag) {
         const first = pickOne(rng, dataBank.firstNames);
         const last = pickOne(rng, dataBank.lastNames);
         fullName = `${first} ${last}`;
-        const suffix = Math.floor(rng() * 1000);
-        email = `scn.${runTag}.${slugify(first)}.${slugify(last)}.${suffix}@test.local`;
+        const baseLocal = `${slugify(first)}.${slugify(last)}`;
+        const suffix = safety === 0 ? "" : `${Math.floor(rng() * 1000)}`;
+        email = `${baseLocal}${suffix}@${GENERATED_EMAIL_DOMAIN}`;
         safety += 1;
       } while (
-        safety < 40 &&
+        safety < 80 &&
         (usedNames.has(fullName.toLowerCase()) || usedEmails.has(email.toLowerCase()))
       );
+
+      if (usedNames.has(fullName.toLowerCase()) || usedEmails.has(email.toLowerCase())) {
+        continue;
+      }
 
       usedNames.add(fullName.toLowerCase());
       usedEmails.add(email.toLowerCase());
@@ -160,7 +249,7 @@ function buildTablePlan(rng, currentTableCount) {
   return shuffle(rng, plan).slice(0, targetCount);
 }
 
-function generateMenuSetup(rng, runTag) {
+function generateMenuSetup(rng) {
   const minCount = 10;
   const maxCount = Math.min(16, dataBank.menuTemplates.length);
   const count = randomInt(rng, minCount, maxCount);
@@ -171,7 +260,7 @@ function generateMenuSetup(rng, runTag) {
     const rawPrice = randomInt(rng, template.minPrice, template.maxPrice);
     const idrPrice = toIdrPrice(rawPrice);
     return {
-      name: `${prefix} ${template.name} (SCN-${runTag})`,
+      name: `${prefix} ${template.name}`,
       category: template.category,
       price: idrPrice
     };
@@ -443,11 +532,9 @@ async function buildSalesReport(shiftDate) {
 }
 
 async function main() {
-  const shiftDate = process.env.OPS_DATE || localDateString();
-  assertDateInput(shiftDate);
-
   const seedInput = process.env.OPS_SEED || `${Date.now()}-${Math.random()}`;
   const rng = createSeededRandom(seedInput);
+  const shiftDate = resolveShiftDate(process.env.OPS_DATE, rng, MAX_PAST_DAYS);
   const runTag = process.env.OPS_RUN_TAG || buildRunTag(shiftDate, rng);
   const client = await pool.connect();
 
@@ -458,7 +545,17 @@ async function main() {
     const coreStaff = await ensureCoreStaff(client, passwordHash);
     const deletedPlaceholders = await cleanupPlaceholderStaff(client);
 
-    const randomStaffPayload = generateRandomStaff(rng, runTag);
+    const currentStaffResult = await client.query(
+      "SELECT name, email FROM staff ORDER BY id"
+    );
+    const currentStaffCount = currentStaffResult.rows.length;
+    const availableStaffSlots = Math.max(0, MAX_TOTAL_STAFF - currentStaffCount);
+
+    const randomStaffPayload = generateRandomStaff(
+      rng,
+      currentStaffResult.rows,
+      availableStaffSlots
+    );
     const insertedStaff = await insertRandomStaff(client, passwordHash, randomStaffPayload);
 
     const currentTables = await client.query("SELECT id FROM restaurant_tables");
@@ -468,7 +565,7 @@ async function main() {
       "SELECT id, table_number, capacity FROM restaurant_tables ORDER BY id"
     );
 
-    const randomMenuPayload = generateMenuSetup(rng, runTag);
+    const randomMenuPayload = generateMenuSetup(rng);
     const insertedMenu = await insertRandomMenu(client, randomMenuPayload);
 
     const waiterIds = coreStaff
@@ -492,7 +589,13 @@ async function main() {
     console.log(`Run tag: ${runTag}`);
     console.log(`Seed: ${seedInput}`);
     console.log(`Placeholder staff removed: ${deletedPlaceholders}`);
+    console.log(
+      `Staff cap: ${MAX_TOTAL_STAFF}, existing before random insert: ${currentStaffCount}`
+    );
     console.log(`Random staff inserted: ${insertedStaff.length}`);
+    if (availableStaffSlots === 0) {
+      console.log("Random staff skipped: current staff count already reached cap.");
+    }
     console.log(`Random menu inserted: ${insertedMenu.length}`);
     console.log(`Orders created: ${created.createdOrders}, order items created: ${created.createdItems}`);
 

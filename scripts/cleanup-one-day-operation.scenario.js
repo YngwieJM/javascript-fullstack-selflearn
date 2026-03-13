@@ -1,11 +1,17 @@
 require("dotenv").config({ path: "./config/.env" });
 const pool = require("../config/db");
+const dataBank = require("./scenario.data-bank");
 
 const SHIFT_START = "09:00:00";
 const SHIFT_END = "23:00:00";
 const CLEAN_MASTER_DATA =
   String(process.env.CLEAN_MASTER_DATA || "").toLowerCase() === "true" ||
   process.argv.includes("--full");
+const GENERATED_EMAIL_DOMAIN =
+  typeof dataBank.staffPolicy?.generatedEmailDomain === "string" &&
+  dataBank.staffPolicy.generatedEmailDomain.trim() !== ""
+    ? dataBank.staffPolicy.generatedEmailDomain.trim().toLowerCase()
+    : "restaurantmail.com";
 
 const SCENARIO_STAFF_EMAILS = [
   "rafi.nugroho@test.com",
@@ -89,13 +95,13 @@ async function main() {
         `DELETE FROM staff s
          WHERE (
              LOWER(s.email) = ANY($1::text[])
-             OR LOWER(s.email) LIKE 'scn.%@test.local'
+             OR LOWER(s.email) LIKE $2
            )
            AND NOT EXISTS (
              SELECT 1 FROM orders o WHERE o.staff_id = s.id
            )
          RETURNING s.id`,
-        [SCENARIO_STAFF_EMAILS]
+        [SCENARIO_STAFF_EMAILS, `%@${GENERATED_EMAIL_DOMAIN}`]
       );
       deletedStaffCount = deletedStaff.rows.length;
 
