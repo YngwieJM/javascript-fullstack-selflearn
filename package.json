@@ -4,7 +4,7 @@
   "description": "",
   "main": "server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --runInBand tests",
     "start": "node server.js",
     "scenario:one-day": "node scripts/one-day-operation.scenario.js",
     "scenario:cleanup-one-day": "node scripts/cleanup-one-day-operation.scenario.js",
