@@ -129,9 +129,19 @@ Default server URL: `http://localhost:3000`
 
 ## Test
 
+This repo uses a minimal session-auth test suite with Jest + Supertest.
+
 ```bash
 npm test
 ```
+
+Current test setup:
+
+- `package.json` script: `jest --runInBand tests`
+- Test app helper: `tests/helpers/createRouteTestApp.js`
+- Route test: `tests/auth.routes.session.test.js`
+- Route test: `tests/orders.routes.session.test.js`
+- Route test: `tests/reports.routes.session.test.js`
 
 ## API Modules
 
