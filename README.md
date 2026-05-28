@@ -33,11 +33,21 @@ Backend API for restaurant operations using Node.js, Express, PostgreSQL, statef
 ## Architecture Diagram
 
 ```mermaid
-flowchart LR
-  Client[Frontend / Postman] -->|HTTP + Cookie Session| API[Express API]
-  API -->|Session Store| SessionTable[(PostgreSQL: session)]
-  API -->|Business Queries| DB[(PostgreSQL: App Tables)]
-  API --> Docs[OpenAPI + Swagger UI]
+flowchart TD
+  Client[Frontend / Postman] -->|HTTP + sid cookie| App[Express App]
+
+  subgraph API[Backend Layer]
+    App --> MW1[CORS + JSON Parser]
+    MW1 --> MW2[Session Middleware]
+    MW2 --> MW3[Auth + RBAC Middleware]
+    MW3 --> MW4[Zod Validation Middleware]
+    MW4 --> CTRL[Controllers]
+    CTRL --> SVC[Services]
+  end
+
+  MW2 -->|read/write session| SessionDB[(PostgreSQL: session table)]
+  SVC -->|business queries| AppDB[(PostgreSQL: app tables)]
+  App --> Docs[Swagger UI / OpenAPI JSON]
 ```
 
 ## API Flow
@@ -45,18 +55,24 @@ flowchart LR
 ```mermaid
 sequenceDiagram
   participant C as Client
-  participant A as API (Express)
+  participant A as API (Express App)
   participant D as PostgreSQL
+  participant S as Session Table
 
   C->>A: POST /auth/login (email, password)
-  A->>D: Verify staff credentials
-  D-->>A: User row
-  A-->>C: 200 + Set-Cookie: sid
+  A->>D: SELECT staff by email
+  D-->>A: Staff row (+ hashed password)
+  A->>A: Verify password (bcrypt)
+  A->>S: Create/update session record
+  A-->>C: 200 OK + Set-Cookie: sid
 
-  C->>A: GET /reports/hourly-sales?date=YYYY-MM-DD (with sid cookie)
-  A->>D: Query CLOSED orders + optional date filter
-  D-->>A: Aggregated rows
-  A-->>C: JSON response
+  C->>A: GET /reports/hourly-sales?date=YYYY-MM-DD (+ sid cookie)
+  A->>S: Resolve session from sid
+  S-->>A: Session user (role=MANAGER)
+  A->>A: AuthZ + validate query
+  A->>D: Aggregate CLOSED orders by hour (filtered by date if provided)
+  D-->>A: Hourly sales rows
+  A-->>C: 200 OK + JSON response
 ```
 
 ## Requirements
@@ -142,6 +158,25 @@ Current test setup:
 - Route test: `tests/auth.routes.session.test.js`
 - Route test: `tests/orders.routes.session.test.js`
 - Route test: `tests/reports.routes.session.test.js`
+
+## CI Pipeline
+
+GitHub Actions CI is configured in:
+
+- `.github/workflows/ci.yml`
+
+The pipeline runs on:
+
+- `push`
+- `pull_request`
+- manual run (`workflow_dispatch`)
+
+Steps:
+
+- Checkout repository
+- Setup Node.js
+- Install dependencies with `npm ci`
+- Run tests with `npm test`
 
 ## API Modules
 
